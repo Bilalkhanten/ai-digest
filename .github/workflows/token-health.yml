@@ -32,10 +32,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           ./scripts/alert_issue.sh open "$ALERT_TITLE" \
-            "The weekly token check found a problem: $RUN_URL
+            "@$OWNER The weekly token check found a problem: $RUN_URL
 
           Regenerate the classic token (public_repo only) and update the FORK_PAT repository secret."
 

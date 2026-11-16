@@ -43,6 +43,10 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: write
+    outputs:
+      picked: ${{ steps.run.outputs.picked }}
+      fork_url: ${{ steps.run.outputs.fork_url }}
+      sha: ${{ steps.commit.outputs.sha }}
     steps:
       - uses: actions/checkout@v5
 
@@ -55,6 +59,7 @@ jobs:
         run: python3 scripts/daily_fork.py
 
       - name: Commit digest
+        id: commit
         if: steps.run.outputs.picked != ''
         env:
           PICKED: ${{ steps.run.outputs.picked }}
@@ -66,6 +71,37 @@ jobs:
           git add digest forked.json INDEX.md
           git commit -m "digest: $PICKED"
           git push
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  # Success notice: an @mention on one running issue emails you (and pushes to the
+  # GitHub mobile app). Only runs when a real commit was pushed, not on dry runs.
+  notify:
+    name: Notify contribution added
+    needs: fork
+    if: needs.fork.outputs.picked != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v5
+      - name: Post to the digest log issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+          PICKED: ${{ needs.fork.outputs.picked }}
+          FORK_URL: ${{ needs.fork.outputs.fork_url }}
+          COMMIT_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ needs.fork.outputs.sha }}
+        run: |
+          ./scripts/alert_issue.sh open "Daily digest log" \
+            "@$OWNER Contribution added: digest for **$PICKED**.
+
+          - Commit: $COMMIT_URL
+          - Fork: $FORK_URL
+
+          The commit is pushed; the contribution graph can take a while to show it."
 
   # Failure alert: opens (or comments on) one GitHub issue per outage.
   alert:
@@ -83,10 +119,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           ./scripts/alert_issue.sh open "$ALERT_TITLE" \
-            "The daily run failed: $RUN_URL
+            "@$OWNER The daily run failed: $RUN_URL
 
           Common causes: the FORK_PAT token expired or was revoked (see the Token health workflow), GitHub API outage, or a failing test."
 

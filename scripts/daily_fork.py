@@ -254,6 +254,7 @@ def main():
     # Author email must belong to your account for the commit to count on your graph.
     set_outputs(
         picked=repo["full_name"],
+        fork_url=fork["html_url"],
         commit_name=me["login"],
         commit_email=f"{me['id']}+{me['login']}@users.noreply.github.com",
     )

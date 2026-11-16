@@ -128,6 +128,7 @@ class MainTests(unittest.TestCase):
 
         outputs = self.out.read_text()
         self.assertIn("picked=acme/agent", outputs)
+        self.assertIn("fork_url=https://github.com/me/agent", outputs)
         self.assertIn("commit_email=42+me@users.noreply.github.com", outputs)
         self.assertIn("Forked `acme/agent`", self.summary.read_text())
 

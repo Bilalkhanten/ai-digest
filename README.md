@@ -17,6 +17,13 @@ toward your contribution graph. See [INDEX.md](INDEX.md) for the log.
 | **Token health** (`token-health.yml`) | Mondays 06:43 UTC, manual | checks `FORK_PAT` is valid, has only `public_repo`, and is not within 14 days of expiry; opens an issue if not |
 | **Dependabot** | monthly | keeps the GitHub Actions versions current |
 
+After a real run pushes a digest commit, the `notify` job @mentions you on a single
+running issue, "Daily digest log". GitHub emails you for that mention (and pushes to the
+GitHub mobile app). Failures and token problems @mention you too. This confirms the
+commit was pushed; the contribution graph itself can lag behind. For emails, check
+Settings > Notifications > "Participating, @mentions and custom" has Email ticked. To
+stop them, mute the issue or delete the `notify` job.
+
 Each run also writes a summary (what was picked or forked) to the job page.
 The API client retries transient errors (429, 5xx, network) up to 3 times.
 
