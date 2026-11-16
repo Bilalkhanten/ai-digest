@@ -33,7 +33,7 @@ jobs:
         id: run
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: python3 scripts/weekly_rollup.py
+        run: python3 scripts/weekly_rollup.py --force   # regenerate; unchanged pages are not committed
 
       - name: Commit the roll-up
         if: steps.run.outputs.written != ''
@@ -46,6 +46,10 @@ jobs:
           git config user.name "$OWNER"
           git config user.email "${owner_id}+${OWNER}@users.noreply.github.com"
           git add digest/weekly
+          if git diff --cached --quiet; then
+            echo "Roll-up unchanged; nothing to commit."
+            exit 0
+          fi
           git commit -m "weekly: ${WRITTEN%.md}"
           git push
 
