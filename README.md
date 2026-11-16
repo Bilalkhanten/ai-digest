@@ -32,7 +32,7 @@ each show up on your contribution graph. See [INDEX.md](INDEX.md) for the log.
 - GitHub disables scheduled workflows in a public repo after 60 days without
   repo activity. The daily digest commit should keep it active; check the
   Actions tab now and then.
-- Tuning (environment variables in the workflow): `MIN_STARS` (default 1000),
+- Tuning (environment variables in the workflow): `MIN_STARS` (default 100),
   `MAX_AGE_DAYS` (default 30), `CLAUDE_MODEL`.
 - It forks once a day and keeps `default_branch_only` on to stay light. Don't
   raise the frequency; GitHub's acceptable-use rules target bulk automated activity.

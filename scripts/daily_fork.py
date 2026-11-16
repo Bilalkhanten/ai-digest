@@ -31,7 +31,7 @@ TOPICS = [
     "deep-learning", "mcp", "nlp", "computer-vision", "langchain",
 ]
 
-MIN_STARS = int(os.getenv("MIN_STARS", "1000"))
+MIN_STARS = int(os.getenv("MIN_STARS", "100"))
 MAX_AGE_DAYS = int(os.getenv("MAX_AGE_DAYS", "30"))
 CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-haiku-5-5")
 DRY_RUN = os.getenv("DRY_RUN") == "1"
