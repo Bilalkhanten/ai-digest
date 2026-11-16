@@ -38,9 +38,10 @@ LONG_README = "# Project\n" + "A useful description of the project. " * 30
 class FakeGitHub:
     """Routes df.gh() calls to canned responses and records writes."""
 
-    def __init__(self, items, readmes=None, releases=None):
+    def __init__(self, items, readmes=None, releases=None, readme_errors=None):
         self.items = items
         self.readmes = readmes or {}
+        self.readme_errors = readme_errors or {}
         self.releases = releases or {}
         self.calls = []
 
@@ -51,6 +52,9 @@ class FakeGitHub:
         if path.startswith("/search/repositories"):
             return json.dumps({"items": self.items})
         if path.endswith("/readme"):
+            name = path.split("/repos/")[1].rsplit("/readme", 1)[0]
+            if name in self.readme_errors:
+                raise df.ApiError(self.readme_errors[name])
             return self.readmes.get(path.split("/repos/")[1].rsplit("/readme", 1)[0], LONG_README)
         if path.endswith("/releases/latest"):
             name = path.split("/repos/")[1].rsplit("/releases/latest", 1)[0]
@@ -253,6 +257,27 @@ class ChooseRepoTests(unittest.TestCase):
             repo, readme = df.choose_repo(pool)
         self.assertEqual(repo["full_name"], "b/good")
         self.assertGreaterEqual(len(readme), 500)
+
+    def test_missing_readme_404_is_skipped(self):
+        pool = [make_repo("a/none"), make_repo("b/good")]
+        fake = FakeGitHub([], readme_errors={"a/none": "GET /repos/a/none/readme -> HTTP 404: Not Found"})
+        with mock.patch.object(df, "gh", fake):
+            repo, _ = df.choose_repo(pool)
+        self.assertEqual(repo["full_name"], "b/good")
+
+    def test_unverifiable_readme_is_accepted_not_penalised(self):
+        for message in ("GET x -> HTTP 403: rate limit", "GET x -> HTTP 502: bad gateway", "GET x -> network error: down"):
+            pool = [make_repo("a/flaky"), make_repo("b/other")]
+            with mock.patch.object(df, "gh", FakeGitHub([], readme_errors={"a/flaky": message})):
+                repo, readme = df.choose_repo(pool)
+            self.assertEqual((repo["full_name"], readme), ("a/flaky", ""))
+
+    def test_a_day_is_not_lost_when_every_readme_lookup_fails(self):
+        pool = [make_repo(f"o/r{i}") for i in range(3)]
+        errors = {f"o/r{i}": "HTTP 500" for i in range(3)}
+        with mock.patch.object(df, "gh", FakeGitHub([], readme_errors=errors)):
+            repo, _ = df.choose_repo(pool)
+        self.assertIsNotNone(repo)
 
     def test_returns_none_when_all_readmes_are_stubs(self):
         pool = [make_repo("a/stub")]

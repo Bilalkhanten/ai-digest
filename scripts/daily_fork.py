@@ -218,13 +218,14 @@ def find_candidate(forked, me_login):
 
 
 def fetch_readme(repo):
+    """README text, "" if the repo has none (404), or None if it could not be checked."""
     try:
         return gh(
             "GET", f"/repos/{repo['full_name']}/readme",
             accept="application/vnd.github.raw+json",
         )[:6000]
-    except ApiError:
-        return ""
+    except ApiError as e:
+        return "" if "HTTP 404" in str(e) else None
 
 
 def fetch_release(repo):
@@ -278,9 +279,14 @@ def reason_text(repo, today, release):
 
 
 def choose_repo(pool):
-    """First candidate with a real README. Returns (repo, readme) or (None, '')."""
+    """First candidate with a real README. Returns (repo, readme) or (None, '').
+
+    A README that could not be checked (rate limit, network) is not held against the repo."""
     for repo in pool[:MAX_README_TRIES]:
         readme = fetch_readme(repo)
+        if readme is None:
+            print(f"Could not check the README of {repo['full_name']}; accepting it unchecked")
+            return repo, ""
         if len(readme.strip()) >= CONFIG["min_readme_chars"]:
             return repo, readme
         print(f"Skipping {repo['full_name']}: README too short ({len(readme.strip())} chars)")
