@@ -1,7 +1,41 @@
 {
   "topics": [
-    "llm", "ai-agents", "rag", "machine-learning", "generative-ai",
-    "deep-learning", "mcp", "nlp", "computer-vision", "langchain"
+    "kubernetes",
+    "llm",
+    "devops",
+    "docker",
+    "ai-agents",
+    "sre",
+    "rag",
+    "monitoring",
+    "observability",
+    "machine-learning",
+    "prometheus",
+    "grafana",
+    "generative-ai",
+    "opentelemetry",
+    "terraform",
+    "deep-learning",
+    "infrastructure-as-code",
+    "gitops",
+    "mcp",
+    "helm",
+    "nlp",
+    "cloud-native",
+    "platform-engineering",
+    "computer-vision",
+    "ci-cd",
+    "ansible",
+    "langchain",
+    "service-mesh",
+    "incident-response",
+    "robotics",
+    "logging",
+    "data-science",
+    "ebpf",
+    "containers",
+    "diffusion",
+    "argocd"
   ],
   "min_stars": 100,
   "max_age_days": 30,
@@ -9,6 +43,18 @@
   "min_readme_chars": 500,
   "exclude_repos": [],
   "exclude_owners": [],
-  "exclude_name_patterns": ["^awesome", "interview", "roadmap"],
-  "exclude_description_keywords": ["curated list", "awesome list", "interview questions", "roadmap"]
+  "exclude_name_patterns": [
+    "^awesome",
+    "interview",
+    "roadmap",
+    "cheat-?sheet"
+  ],
+  "exclude_description_keywords": [
+    "curated list",
+    "awesome list",
+    "interview questions",
+    "roadmap",
+    "cheat sheet",
+    "cheatsheet"
+  ]
 }

@@ -28,6 +28,39 @@ class WeekTests(unittest.TestCase):
         self.assertEqual([e["repo"] for e in got], ["b/one", "c/two", "d/three"])
 
 
+class GainersTests(unittest.TestCase):
+    DAY = date(2026, 11, 18)
+
+    def test_only_picks_that_gained_and_biggest_gain_first(self):
+        # a/old (picked Nov 9) is within 30 days: 5 -> 9999. c/two fell and d/three is unchanged.
+        stars_now = {"a/old": 9999, "b/one": 2500, "c/two": 700, "d/three": 300}
+        rows = wr.gainers_rows(STATE, self.DAY, stars_now)
+        self.assertEqual([r["repo"] for r in rows], ["a/old", "b/one"])
+
+    def test_old_picks_fall_outside_the_window(self):
+        old_state = STATE + [{"date": "2026-09-01", "repo": "e/ancient", "stars": 10, "topic": "x", "fork_url": None}]
+        rows = wr.gainers_rows(old_state, self.DAY, {"e/ancient": 5000, "b/one": 1600})
+        self.assertEqual([r["repo"] for r in rows], ["b/one"])
+
+    def test_limit_and_ordering(self):
+        state = [{"date": "2026-11-10", "repo": f"o/r{i}", "stars": 100, "topic": "t", "fork_url": None} for i in range(8)]
+        now = {f"o/r{i}": 100 + i * 10 for i in range(8)}
+        rows = wr.gainers_rows(state, self.DAY, now, limit=3)
+        self.assertEqual([r["repo"] for r in rows], ["o/r7", "o/r6", "o/r5"])
+
+    def test_unknown_star_counts_are_skipped(self):
+        self.assertEqual(wr.gainers_rows(STATE, self.DAY, {}), [])
+
+    def test_section_renders_only_when_there_are_gainers(self):
+        entries = wr.week_entries(STATE, date(2026, 11, 16))
+        infos = [{"language": "x", "description": "", "license": "", "summary": ""}] * 3
+        rows = wr.gainers_rows(STATE, self.DAY, {"b/one": 1800})
+        text = wr.render_weekly("2026-W47", entries, infos, gainers=rows)
+        self.assertIn("## Biggest gainers (picks from the last 30 days)", text)
+        self.assertIn("| [b/one](https://github.com/b/one) | 2026-11-16 | 1,500 | 1,800 | +300 (+20%) |", text)
+        self.assertNotIn("Biggest gainers", wr.render_weekly("2026-W47", entries, infos))
+
+
 class RenderTests(unittest.TestCase):
     def test_counts_and_links(self):
         entries = wr.week_entries(STATE, date(2026, 11, 16))

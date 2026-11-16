@@ -123,7 +123,7 @@ def column_chart_svg(items, title, width=560, height=140):
     )
 
 
-def _fmt_delta(row):
+def format_delta(row):
     if row["delta"] is None:
         return "n/a"
     sign = "+" if row["delta"] > 0 else ""
@@ -156,13 +156,13 @@ def render_stats_page(css, entries, infos, stars_now, today, generated_label):
         f"<tr><td><a href='{escape(entry_link({'repo': r['repo']}))}'>{escape(r['repo'])}</a></td>"
         f"<td>{escape(r['date'])}</td><td>{r['then']:,}</td>"
         f"<td>{'n/a' if r['now'] is None else format(r['now'], ',')}</td>"
-        f"<td>{escape(_fmt_delta(r))}</td></tr>"
+        f"<td>{escape(format_delta(r))}</td></tr>"
         for r in rows
     )
     return (
         "<!doctype html><html lang='en'><head><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-        "<title>AI repo digest: stats</title>"
+        "<title>Repo digest: stats</title>"
         f"<style>{css}{STATS_CSS}</style></head><body><main>"
         "<h1>Stats</h1><p class='muted'><a href='index.html'>Back to the digest</a> &middot; "
         f"<a href='digests.json'>digests.json</a> (open data) &middot; built {escape(generated_label)}</p>"

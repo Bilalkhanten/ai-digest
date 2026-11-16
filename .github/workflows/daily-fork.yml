@@ -1,4 +1,4 @@
-name: Daily AI repo fork
+name: Daily repo fork
 
 on:
   schedule:
@@ -18,7 +18,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  ALERT_TITLE: "Daily AI repo fork failed"
+  ALERT_TITLE: "Daily repo fork failed"
 
 jobs:
   # Deploy gate: nothing is forked or committed unless the tests pass.
@@ -68,7 +68,7 @@ jobs:
         run: |
           git config user.name "$COMMIT_NAME"
           git config user.email "$COMMIT_EMAIL"
-          git add digest forked.json INDEX.md
+          git add digest forked.json INDEX.md README.md
           git commit -m "digest: $PICKED"
           git push
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"

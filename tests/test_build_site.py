@@ -117,6 +117,58 @@ class StatsAndDataTests(unittest.TestCase):
             self.assertEqual(bs.fetch_stars([{"repo": "o/ok"}, {"repo": "o/gone"}]), {"o/ok": 42})
 
 
+class TopicFilterTests(unittest.TestCase):
+    ENTRIES = [
+        {"date": "2026-11-18", "repo": "a/k1", "stars": 1, "topic": "kubernetes", "fork_url": None},
+        {"date": "2026-11-17", "repo": "b/k2", "stars": 1, "topic": "kubernetes", "fork_url": None},
+        {"date": "2026-11-16", "repo": "c/l1", "stars": 1, "topic": "llm", "fork_url": None},
+        {"date": "2026-11-15", "repo": "d/x", "stars": 1, "topic": "<b>bad</b>", "fork_url": None},
+    ]
+
+    def html(self, entries=None):
+        return bs.render_index(entries or self.ENTRIES, [], "", "")
+
+    def test_chips_show_counts_most_common_first_and_start_hidden(self):
+        html = self.html()
+        self.assertIn("<nav id='filters' class='chips' aria-label='Filter by topic' hidden>", html)
+        self.assertIn("data-topic=''", html)
+        self.assertLess(html.index("data-topic='kubernetes'"), html.index("data-topic='llm'"))
+        self.assertIn("kubernetes <span>2</span>", html)
+        self.assertIn("All <span>4</span>", html)
+
+    def test_every_article_carries_its_topic(self):
+        html = self.html()
+        self.assertEqual(html.count("<article data-topic="), 4)
+        self.assertIn("<article data-topic='kubernetes'>", html)
+
+    def test_topics_are_escaped_in_attributes_and_labels(self):
+        html = self.html()
+        self.assertNotIn("<b>bad</b>", html)
+        self.assertIn("&lt;b&gt;bad&lt;/b&gt;", html)
+
+    def test_script_is_inline_and_scoped_to_the_filter_nav(self):
+        html = self.html()
+        self.assertIn("getElementById('filters')", html)
+        self.assertNotIn("http://", html.split("<script>")[1])         # no external scripts
+        self.assertEqual(html.count("<script"), 1)
+
+    def test_chip_count_is_capped(self):
+        many = [{"date": "2026-11-18", "repo": f"o/r{i}", "stars": 1, "topic": f"t{i:02d}", "fork_url": None}
+                for i in range(30)]
+        self.assertEqual(self.html(many).count("<button"), bs.MAX_CHIPS + 1)   # +1 for "All"
+
+    def test_empty_site_has_no_filter_bar(self):
+        self.assertNotIn("id='filters'", bs.render_index([], [], "", ""))
+
+
+class LanguageDisplayTests(unittest.TestCase):
+    def test_unknown_language_is_not_shown_as_na(self):
+        entry = [{"date": "2026-11-18", "repo": "a/b", "stars": 1, "topic": "sre", "fork_url": None}]
+        html = bs.render_index(entry, [], "", "")
+        self.assertNotIn("n/a", html)
+        self.assertIn("1 stars &middot; sre</div>", html)
+
+
 class SummaryHtmlTests(unittest.TestCase):
     def test_plain_text_summary_becomes_a_paragraph(self):
         self.assertEqual(bs.summary_html("just text"), "<p>just text</p>")

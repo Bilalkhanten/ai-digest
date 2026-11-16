@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pick one popular, recently active AI repo, fork it, and write a digest entry.
+"""Pick one popular, recently active open-source repo (AI, DevOps, Kubernetes...), fork it, write a digest.
 
 Standard library only. Settings live in config.json (all optional); environment
 variables override them. Environment variables:
@@ -32,12 +32,20 @@ STATE_FILE = ROOT / "forked.json"
 DIGEST_DIR = ROOT / "digest"
 INDEX_FILE = ROOT / "INDEX.md"
 CONFIG_FILE = ROOT / "config.json"
+README_FILE = ROOT / "README.md"
+LATEST_START, LATEST_END = "<!-- LATEST-PICKS:START -->", "<!-- LATEST-PICKS:END -->"
 
 DEFAULT_CONFIG = {
-    # Rotated by day of year so the feed stays varied.
+    # Rotated by day of year; AI and platform topics are interleaved so the feed alternates.
     "topics": [
-        "llm", "ai-agents", "rag", "machine-learning", "generative-ai",
-        "deep-learning", "mcp", "nlp", "computer-vision", "langchain",
+        "kubernetes", "llm", "devops", "docker", "ai-agents",
+        "sre", "rag", "monitoring", "observability", "machine-learning",
+        "prometheus", "grafana", "generative-ai", "opentelemetry", "terraform",
+        "deep-learning", "infrastructure-as-code", "gitops", "mcp", "helm",
+        "nlp", "cloud-native", "platform-engineering", "computer-vision", "ci-cd",
+        "ansible", "langchain", "service-mesh", "incident-response", "robotics",
+        "logging", "data-science", "ebpf", "containers", "diffusion",
+        "argocd",
     ],
     "min_stars": 100,
     "max_age_days": 30,
@@ -48,8 +56,10 @@ DEFAULT_CONFIG = {
     "release_check_top": 6,        # only the first N candidates are checked for releases
     "exclude_repos": [],           # "owner/name"
     "exclude_owners": [],
-    "exclude_name_patterns": ["^awesome", "interview", "roadmap"],   # regexes on the repo name
-    "exclude_description_keywords": ["curated list", "awesome list", "interview questions", "roadmap"],
+    "exclude_name_patterns": ["^awesome", "interview", "roadmap", "cheat-?sheet"],   # regexes on the name
+    "exclude_description_keywords": [
+        "curated list", "awesome list", "interview questions", "roadmap", "cheat sheet", "cheatsheet",
+    ],
 }
 
 
@@ -192,13 +202,19 @@ def find_candidates(forked, me_login, cooldown_owners=frozenset()):
     now = datetime.now(timezone.utc)
     since = (now - timedelta(days=MAX_AGE_DAYS)).strftime("%Y-%m-%d")
     start = now.timetuple().tm_yday
+    failures, last_error = 0, None
     for i in range(len(TOPICS)):
         topic = TOPICS[(start + i) % len(TOPICS)]
         q = f"topic:{topic} stars:>={MIN_STARS} pushed:>={since} fork:false archived:false"
         qs = urllib.parse.urlencode(
             {"q": q, "sort": "updated", "order": "desc", "per_page": 100}
         )
-        items = json.loads(gh("GET", f"/search/repositories?{qs}"))["items"]
+        try:
+            items = json.loads(gh("GET", f"/search/repositories?{qs}"))["items"]
+        except (ApiError, KeyError, ValueError) as e:
+            failures, last_error = failures + 1, e
+            print(f"Topic {topic}: search failed ({e}); trying the next topic", file=sys.stderr)
+            continue
         eligible = [
             r for r in items
             if r["full_name"] not in forked
@@ -206,8 +222,11 @@ def find_candidates(forked, me_login, cooldown_owners=frozenset()):
             and not is_excluded(r)
         ]
         pool = [r for r in eligible if r["owner"]["login"].lower() not in cooldown_owners] or eligible
+        print(f"Topic {topic}: {len(items)} results, {len(eligible)} eligible, {len(pool)} after cooldown")
         if pool:
             return topic, weighted_order(pool, now.date())
+    if failures == len(TOPICS) and last_error is not None:
+        raise last_error          # every search failed: fail loudly so the alert issue opens
     return None, []
 
 
@@ -359,7 +378,7 @@ def render_digest(today, topic, repo, summary, extras=None):
 
 
 def render_index(state):
-    rows = ["# AI repo digest", "", "One AI repo summarised per day; forked on the configured cadence.", "",
+    rows = ["# Repo digest", "", "One popular open-source repo per day (AI, DevOps, Kubernetes, SRE...).", "",
             "| Date | Repo | Stars | Topic | Forked | Notes |", "|---|---|---|---|---|---|"]
     for e in sorted(state, key=lambda x: x["date"], reverse=True):
         forked = "yes" if e.get("fork_url") else "no"
@@ -368,6 +387,36 @@ def render_index(state):
             f"{e['topic']} | {forked} | [digest](digest/{e['date']}.md) |"
         )
     return "\n".join(rows) + "\n"
+
+
+def render_latest_block(state, n=7):
+    """Markdown table of the newest picks for the README."""
+    rows = ["| Date | Repo | Stars | Topic |", "|---|---|---|---|"]
+    for e in sorted(state, key=lambda x: x["date"], reverse=True)[:n]:
+        rows.append(
+            f"| {e['date']} | [{e['repo']}](https://github.com/{e['repo']}) | {e['stars']:,} | {e['topic']} |"
+        )
+    return "\n".join(rows)
+
+
+def replace_block(text, block):
+    """Swap the text between the LATEST-PICKS markers. No markers = no change."""
+    a, b = text.find(LATEST_START), text.find(LATEST_END)
+    if a == -1 or b == -1 or b < a:
+        return text
+    return text[: a + len(LATEST_START)] + "\n" + block + "\n" + text[b:]
+
+
+def update_readme(state):
+    """Refresh the latest-picks block in README.md. Returns True if the file changed."""
+    if not README_FILE.exists():
+        return False
+    old = README_FILE.read_text(encoding="utf-8")
+    new = replace_block(old, render_latest_block(state))
+    if new == old:
+        return False
+    README_FILE.write_text(new, encoding="utf-8")
+    return True
 
 
 def set_outputs(**kv):
@@ -452,6 +501,7 @@ def main():
     digest_path.write_text(page, encoding="utf-8")
     STATE_FILE.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
     INDEX_FILE.write_text(render_index(state), encoding="utf-8")
+    update_readme(state)
 
     outcome = f"- Fork: {fork_url}" if fork_url else "- Fork: none today (digest only)"
     write_summary(

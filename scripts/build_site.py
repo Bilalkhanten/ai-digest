@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+from collections import Counter
 from datetime import datetime, timezone
 from email.utils import format_datetime
 from html import escape
@@ -33,7 +34,47 @@ main{max-width:46rem;margin:0 auto;padding:1.5rem 1rem}
 a{color:var(--link)} h1{margin:0 0 .25rem} .muted{color:var(--muted);font-size:.9rem}
 article{border-top:1px solid var(--line);padding:1rem 0} h2{font-size:1.1rem;margin:0}
 ul{margin:.4rem 0 0 1.2rem;padding:0}
+[hidden]{display:none!important}
+.chips{display:flex;flex-wrap:wrap;gap:.4rem;margin:.75rem 0}
+.chip{font:inherit;font-size:.85rem;color:var(--fg);background:transparent;border:1px solid var(--line);
+border-radius:999px;padding:.15rem .7rem;cursor:pointer}
+.chip span{color:var(--muted)}
+.chip[aria-pressed=true]{background:var(--link);border-color:var(--link);color:var(--bg)}
+.chip[aria-pressed=true] span{color:var(--bg)}
 """
+
+
+FILTER_JS = """
+(function(){
+  var nav=document.getElementById('filters'); if(!nav) return;
+  var arts=document.querySelectorAll('article[data-topic]');
+  nav.hidden=false;
+  nav.addEventListener('click',function(e){
+    var b=e.target.closest('button[data-topic]'); if(!b) return;
+    var t=b.getAttribute('data-topic');
+    nav.querySelectorAll('button').forEach(function(x){
+      x.setAttribute('aria-pressed', x===b?'true':'false');
+    });
+    arts.forEach(function(a){a.hidden = t!=='' && a.getAttribute('data-topic')!==t;});
+  });
+})();
+"""
+MAX_CHIPS = 12
+
+
+def chips_html(entries):
+    """Topic buttons (most common first). Hidden until JavaScript runs, so no dead buttons without it."""
+    counts = Counter(e["topic"] for e in entries)
+    top = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))[:MAX_CHIPS]
+    def chip(topic, label, count, pressed):
+        return (
+            f"<button class='chip' data-topic='{escape(topic)}' aria-pressed='{pressed}'>"
+            f"{escape(label)} <span>{count}</span></button>"
+        )
+
+    buttons = [chip("", "All", len(entries), "true")] + [chip(t, t, n, "false") for t, n in top]
+    nav = "<nav id='filters' class='chips' aria-label='Filter by topic' hidden>"
+    return nav + "".join(buttons) + "</nav>"
 
 
 def info_for(entry):
@@ -78,11 +119,12 @@ def render_index(entries, weekly_files, site_url, repo_slug):
     parts = [
         "<!doctype html><html lang='en'><head><meta charset='utf-8'>",
         "<meta name='viewport' content='width=device-width,initial-scale=1'>",
-        "<title>AI repo digest</title>",
-        "<link rel='alternate' type='application/rss+xml' title='AI repo digest' href='feed.xml'>",
+        "<title>Repo digest</title>",
+        "<link rel='alternate' type='application/rss+xml' title='Repo digest' href='feed.xml'>",
         f"<style>{CSS}</style></head><body><main>",
-        "<h1>AI repo digest</h1>",
-        "<p class='muted'>One popular, recently active AI repo per day. "
+        "<h1>Repo digest</h1>",
+        "<p class='muted'>One popular, recently active open-source repo per day "
+        "(AI, DevOps, Kubernetes, SRE and more). "
         "<a href='feed.xml'>RSS feed</a> &middot; <a href='stats.html'>Stats</a> &middot; "
         "<a href='digests.json'>Open data</a></p>",
     ]
@@ -93,16 +135,19 @@ def render_index(entries, weekly_files, site_url, repo_slug):
             for f in weekly_files[:8]
         )
         parts.append(f"<p class='muted'>Weekly roll-ups: {links}</p>")
+    if entries:
+        parts.append(chips_html(entries))
     for e in entries:
         info = info_for(e)
         fork = f" &middot; <a href='{escape(e['fork_url'])}'>fork</a>" if e.get("fork_url") else ""
+        lang = f" &middot; {escape(info['language'])}" if info["language"] != "n/a" else ""
         parts.append(
-            f"<article><h2><a href='https://github.com/{escape(e['repo'])}'>{escape(e['repo'])}</a></h2>"
+            f"<article data-topic='{escape(e['topic'])}'><h2><a href='https://github.com/{escape(e['repo'])}'>{escape(e['repo'])}</a></h2>"
             f"<div class='muted'>{escape(e['date'])} &middot; {e['stars']:,} stars &middot; "
-            f"{escape(e['topic'])} &middot; {escape(info['language'])}{fork}</div>"
+            f"{escape(e['topic'])}{lang}{fork}</div>"
             f"<p>{escape(info['description'])}</p>{glance_html(info)}{summary_html(info['summary'])}</article>"
         )
-    parts.append("</main></body></html>")
+    parts.append(f"</main><script>{FILTER_JS}</script></body></html>")
     return "\n".join(parts)
 
 
@@ -127,9 +172,9 @@ def render_feed(entries, site_url, now):
         )
     return (
         "<?xml version='1.0' encoding='UTF-8'?><rss version='2.0'><channel>"
-        "<title>AI repo digest</title>"
+        "<title>Repo digest</title>"
         f"<link>{xml_escape(site_url or 'https://github.com')}</link>"
-        "<description>One popular, recently active AI repo per day.</description>"
+        "<description>One popular, recently active open-source repo per day.</description>"
         f"<lastBuildDate>{format_datetime(now)}</lastBuildDate>"
         + "".join(items)
         + "</channel></rss>"

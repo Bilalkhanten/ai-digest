@@ -1,19 +1,27 @@
-# AI repo digest
+# Repo digest
 
 [![CI](https://github.com/Bilalkhanten/ai-digest/actions/workflows/ci.yml/badge.svg)](https://github.com/Bilalkhanten/ai-digest/actions/workflows/ci.yml)
 [![Daily fork](https://github.com/Bilalkhanten/ai-digest/actions/workflows/daily-fork.yml/badge.svg)](https://github.com/Bilalkhanten/ai-digest/actions/workflows/daily-fork.yml)
 
-Every day a GitHub Actions workflow picks one popular, recently active AI repo
-(rotating topics such as `llm`, `ai-agents`, `rag`, `mcp`), forks it into your
+Every day a GitHub Actions workflow picks one popular, recently active open-source repo
+(rotating topics across AI, Kubernetes, DevOps, SRE, monitoring and more), forks it into your
 account, and commits a short digest entry to this repo. The digest commit counts
 toward your contribution graph. See [INDEX.md](INDEX.md) for the log.
+
+## Latest picks
+
+<!-- LATEST-PICKS:START -->
+| Date | Repo | Stars | Topic |
+|---|---|---|---|
+| 2026-11-16 | [EverMind-AI/Raven](https://github.com/EverMind-AI/Raven) | 6,225 | llm |
+<!-- LATEST-PICKS:END -->
 
 ## Pipeline
 
 | Workflow | Trigger | What it does |
 |---|---|---|
 | **CI** (`ci.yml`) | every push, PRs to `main` | offline tests on Python 3.10 to 3.13, `ruff`, `shellcheck`, `actionlint` |
-| **Daily AI repo fork** (`daily-fork.yml`) | 07:17 UTC daily, manual | `verify` (tests) gates `fork` (pick, fork, commit digest). On failure it opens one issue; the next success closes it |
+| **Daily repo fork** (`daily-fork.yml`) | 07:17 UTC daily, manual | `verify` (tests) gates `fork` (pick, fork, commit digest). On failure it opens one issue; the next success closes it |
 | **Token health** (`token-health.yml`) | Mondays 06:43 UTC, manual | checks `FORK_PAT` is valid, has only `public_repo`, and is not within 14 days of expiry; opens an issue if not |
 | **Weekly roll-up** (`weekly-rollup.yml`) | Sundays 18:23 UTC, manual | writes `digest/weekly/YYYY-Www.md` (repos, topic and language counts, optional Claude themes) and commits it |
 | **Watchdog** (`watchdog.yml`) | daily 12:07 UTC, manual | opens an issue if the newest digest is 2+ days old (a skipped or failing schedule) |
@@ -44,7 +52,7 @@ The API client retries transient errors (429, 5xx, network) up to 3 times.
      Claude-written summary in each digest. Without it the digest still lists the
      repo's metadata. This is API usage, billed separately from a claude.ai plan;
      one small summary a day costs very little.
-4. **Test it**: Actions tab > "Daily AI repo fork" > Run workflow, and tick
+4. **Test it**: Actions tab > "Daily repo fork" > Run workflow, and tick
    `dry_run`. The log shows the repo it would pick. Then run it again with
    `dry_run` unticked to fork and commit for real.
 5. **Check your profile** after a run. The contribution graph can lag, and dates
@@ -83,7 +91,7 @@ Settings live in `config.json`; environment variables (`MIN_STARS`, `MAX_AGE_DAY
 
 | Key | Default | Meaning |
 |---|---|---|
-| `topics` | 10 AI topics | rotated by day of year |
+| `topics` | 36 topics | rotated by day of year; AI and platform topics (Kubernetes, DevOps, Docker, SRE, monitoring, observability, Terraform, GitOps...) are interleaved so the feed alternates |
 | `min_stars` / `max_age_days` | 100 / 30 | popularity floor, and how recently the repo was pushed |
 | `fork_every_days` | 1 | `1` daily, `7` weekly, `0` never (digest only) |
 | `min_readme_chars` | 500 | skip repos with a stub README |
