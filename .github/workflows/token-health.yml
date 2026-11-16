@@ -1,0 +1,49 @@
+name: Token health
+
+on:
+  schedule:
+    - cron: "43 6 * * 1"   # Mondays 06:43 UTC
+  workflow_dispatch:
+
+permissions: {}
+
+env:
+  ALERT_TITLE: "FORK_PAT token needs attention"
+
+jobs:
+  check:
+    name: Check FORK_PAT
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check token validity, scopes and expiry
+        env:
+          GH_TOKEN: ${{ secrets.FORK_PAT }}
+          WARN_DAYS: "14"
+        run: python3 scripts/health_check.py
+
+      - name: Open or update issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          ./scripts/alert_issue.sh open "$ALERT_TITLE" \
+            "The weekly token check found a problem: $RUN_URL
+
+          Regenerate the classic token (public_repo only) and update the FORK_PAT repository secret."
+
+      - name: Close issue if healthy again
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          ./scripts/alert_issue.sh close "$ALERT_TITLE" "Resolved: the token check passes ($RUN_URL)."

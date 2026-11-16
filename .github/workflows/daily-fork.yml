@@ -10,19 +10,41 @@ on:
         type: boolean
         default: false
 
-permissions:
-  contents: write
+# Each job asks only for what it needs.
+permissions: {}
 
 concurrency:
   group: daily-fork
   cancel-in-progress: false
 
+env:
+  ALERT_TITLE: "Daily AI repo fork failed"
+
 jobs:
+  # Deploy gate: nothing is forked or committed unless the tests pass.
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run offline test suite
+        run: python3 -m unittest discover -s tests
+
   fork:
+    name: Pick, fork and commit digest
+    needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Pick, fork and write digest
         id: run
@@ -44,3 +66,45 @@ jobs:
           git add digest forked.json INDEX.md
           git commit -m "digest: $PICKED"
           git push
+
+  # Failure alert: opens (or comments on) one GitHub issue per outage.
+  alert:
+    name: Open failure issue
+    needs: [verify, fork]
+    if: failure()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v5
+      - name: Open or update issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          ./scripts/alert_issue.sh open "$ALERT_TITLE" \
+            "The daily run failed: $RUN_URL
+
+          Common causes: the FORK_PAT token expired or was revoked (see the Token health workflow), GitHub API outage, or a failing test."
+
+  # Self-heal: closes the issue once a run succeeds again.
+  resolve:
+    name: Close failure issue
+    needs: [verify, fork]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v5
+      - name: Close issue if one is open
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          ./scripts/alert_issue.sh close "$ALERT_TITLE" "Resolved: a later run succeeded ($RUN_URL)."

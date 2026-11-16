@@ -13,6 +13,7 @@ import json
 import os
 import random
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -43,8 +44,13 @@ class ApiError(Exception):
     pass
 
 
+# Transient failures worth retrying. 403/429 only when GitHub says to back off.
+RETRY_STATUS = {429, 500, 502, 503, 504}
+MAX_ATTEMPTS = 3
+
+
 def gh(method, path, data=None, accept="application/vnd.github+json"):
-    """Minimal GitHub REST call. Returns the response body as text."""
+    """Minimal GitHub REST call with a few retries. Returns the response body as text."""
     headers = {
         "Accept": accept,
         "X-GitHub-Api-Version": "2022-11-28",
@@ -53,12 +59,29 @@ def gh(method, path, data=None, accept="application/vnd.github+json"):
     if TOKEN:
         headers["Authorization"] = f"Bearer {TOKEN}"
     body = json.dumps(data).encode() if data is not None else None
-    req = urllib.request.Request(f"{API}{path}", data=body, method=method, headers=headers)
-    try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            return resp.read().decode()
-    except urllib.error.HTTPError as e:
-        raise ApiError(f"{method} {path} -> HTTP {e.code}: {e.read().decode()[:300]}") from None
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        req = urllib.request.Request(f"{API}{path}", data=body, method=method, headers=headers)
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                return resp.read().decode()
+        except urllib.error.HTTPError as e:
+            retry_after = e.headers.get("Retry-After") if e.headers else None
+            transient = e.code in RETRY_STATUS or (e.code == 403 and retry_after)
+            if transient and attempt < MAX_ATTEMPTS:
+                delay = min(int(retry_after), 60) if (retry_after or "").isdigit() else 2**attempt
+                print(f"HTTP {e.code} on {method} {path}; retry {attempt} in {delay}s", file=sys.stderr)
+                time.sleep(delay)
+                continue
+            raise ApiError(
+                f"{method} {path} -> HTTP {e.code}: {e.read().decode()[:300]}"
+            ) from None
+        except urllib.error.URLError as e:
+            if attempt < MAX_ATTEMPTS:
+                print(f"Network error on {method} {path}: {e.reason}; retry {attempt}", file=sys.stderr)
+                time.sleep(2**attempt)
+                continue
+            raise ApiError(f"{method} {path} -> network error: {e.reason}") from None
+    raise ApiError(f"{method} {path} -> retries exhausted")  # pragma: no cover
 
 
 def find_candidate(forked, me_login):
@@ -159,11 +182,20 @@ def set_outputs(**kv):
                 f.write(f"{k}={v}\n")
 
 
+def write_summary(text):
+    """Append markdown to the GitHub Actions job summary page, if running there."""
+    path = os.getenv("GITHUB_STEP_SUMMARY")
+    if path:
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(text.rstrip() + "\n")
+
+
 def main():
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     digest_path = DIGEST_DIR / f"{today}.md"
     if digest_path.exists():
         print(f"Digest for {today} already exists; nothing to do.")
+        write_summary(f"### Nothing to do\n\nA digest for {today} already exists.")
         return 0
 
     state = json.loads(STATE_FILE.read_text()) if STATE_FILE.exists() else []
@@ -176,6 +208,7 @@ def main():
     topic, repo = find_candidate(forked, me["login"])
     if not repo:
         print("No candidate found; try lowering MIN_STARS or raising MAX_AGE_DAYS.")
+        write_summary("### No candidate found\n\nTry lowering `MIN_STARS` or raising `MAX_AGE_DAYS`.")
         return 0
     print(f"Picked {repo['full_name']} ({repo['stargazers_count']:,} stars, topic: {topic})")
 
@@ -191,6 +224,7 @@ def main():
     if DRY_RUN:
         print("--- DRY RUN: nothing forked or written ---")
         print(page)
+        write_summary(f"### Dry run: would fork `{repo['full_name']}`\n\n{page}")
         return 0
     if not TOKEN:
         raise SystemExit("GH_TOKEN is required to fork (set it, or use DRY_RUN=1).")
@@ -213,6 +247,10 @@ def main():
     STATE_FILE.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
     INDEX_FILE.write_text(render_index(state), encoding="utf-8")
 
+    write_summary(
+        f"### Forked `{repo['full_name']}`\n\n"
+        f"- Fork: {fork['html_url']}\n- Stars: {repo['stargazers_count']:,}\n- Topic: `{topic}`\n"
+    )
     # Author email must belong to your account for the commit to count on your graph.
     set_outputs(
         picked=repo["full_name"],

@@ -1,9 +1,24 @@
 # AI repo digest
 
+[![CI](https://github.com/Bilalkhanten/ai-digest/actions/workflows/ci.yml/badge.svg)](https://github.com/Bilalkhanten/ai-digest/actions/workflows/ci.yml)
+[![Daily fork](https://github.com/Bilalkhanten/ai-digest/actions/workflows/daily-fork.yml/badge.svg)](https://github.com/Bilalkhanten/ai-digest/actions/workflows/daily-fork.yml)
+
 Every day a GitHub Actions workflow picks one popular, recently active AI repo
 (rotating topics such as `llm`, `ai-agents`, `rag`, `mcp`), forks it into your
-account, and commits a short digest entry to this repo. The fork and the commit
-each show up on your contribution graph. See [INDEX.md](INDEX.md) for the log.
+account, and commits a short digest entry to this repo. The digest commit counts
+toward your contribution graph. See [INDEX.md](INDEX.md) for the log.
+
+## Pipeline
+
+| Workflow | Trigger | What it does |
+|---|---|---|
+| **CI** (`ci.yml`) | every push, PRs to `main` | offline tests on Python 3.10 to 3.13, `ruff`, `shellcheck`, `actionlint` |
+| **Daily AI repo fork** (`daily-fork.yml`) | 07:17 UTC daily, manual | `verify` (tests) gates `fork` (pick, fork, commit digest). On failure it opens one issue; the next success closes it |
+| **Token health** (`token-health.yml`) | Mondays 06:43 UTC, manual | checks `FORK_PAT` is valid, has only `public_repo`, and is not within 14 days of expiry; opens an issue if not |
+| **Dependabot** | monthly | keeps the GitHub Actions versions current |
+
+Each run also writes a summary (what was picked or forked) to the job page.
+The API client retries transient errors (429, 5xx, network) up to 3 times.
 
 ## Setup (about 10 minutes)
 
@@ -28,7 +43,9 @@ each show up on your contribution graph. See [INDEX.md](INDEX.md) for the log.
 
 - The commit author is set to your GitHub noreply address (`ID+login@users.noreply.github.com`),
   which is what lets the commit count toward your graph.
-- Forking counts as a contribution; commits made inside a fork do not.
+- The graph counts commits to a repo's default branch made with an email linked to
+  your account. Forks are not a documented contribution type, so don't rely on them
+  to add squares; commits made inside a fork do not count either.
 - GitHub disables scheduled workflows in a public repo after 60 days without
   repo activity. The daily digest commit should keep it active; check the
   Actions tab now and then.
@@ -36,7 +53,15 @@ each show up on your contribution graph. See [INDEX.md](INDEX.md) for the log.
   `MAX_AGE_DAYS` (default 30), `CLAUDE_MODEL`.
 - It forks once a day and keeps `default_branch_only` on to stay light. Don't
   raise the frequency; GitHub's acceptable-use rules target bulk automated activity.
-- Revoke the token if you stop using this.
+- Revoke the token if you stop using this. To renew it, regenerate it and update the
+  `FORK_PAT` secret; the Token health workflow warns you 14 days ahead.
+
+## Develop
+
+```bash
+python3 -m unittest discover -s tests -v   # offline; never contacts GitHub
+pip install ruff && ruff check .
+```
 
 ## Run locally
 
