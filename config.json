@@ -56,5 +56,47 @@
     "roadmap",
     "cheat sheet",
     "cheatsheet"
-  ]
+  ],
+  "areas": {
+    "AI": [
+      "llm",
+      "ai-agents",
+      "rag",
+      "machine-learning",
+      "generative-ai",
+      "deep-learning",
+      "mcp",
+      "nlp",
+      "computer-vision",
+      "langchain",
+      "robotics",
+      "data-science",
+      "diffusion"
+    ],
+    "Platform": [
+      "kubernetes",
+      "devops",
+      "docker",
+      "sre",
+      "monitoring",
+      "observability",
+      "prometheus",
+      "grafana",
+      "opentelemetry",
+      "terraform",
+      "infrastructure-as-code",
+      "gitops",
+      "helm",
+      "cloud-native",
+      "platform-engineering",
+      "ci-cd",
+      "ansible",
+      "service-mesh",
+      "incident-response",
+      "logging",
+      "ebpf",
+      "containers",
+      "argocd"
+    ]
+  }
 }

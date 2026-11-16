@@ -135,12 +135,56 @@ def release_text(release):
     return f"{tag} ({published})" if published else tag
 
 
-def build_extras(repo, readme, today, release=None):
+_SEVERITY_ORDER = ["critical", "high", "medium", "low"]
+_NOISE = ("full changelog", "new contributors", "what's changed", "whats changed")
+
+
+def release_notes(release, limit=260, max_items=3):
+    """The first few meaningful lines of the latest release notes, as plain text. '' if none."""
+    body = (release or {}).get("body") or ""
+    items = []
+    for line, in_fence in _outside_fences(body):
+        if in_fence:
+            continue
+        s = line.strip()
+        if not s or s.startswith(("#", "|", ">", "---", "===")) or s.lower().strip("*_ ").startswith(_NOISE):
+            continue
+        s = re.sub(r"^(?:[-*+]|\d+\.)\s+", "", s)
+        s = re.sub(r"\s+by\s+@\S+.*$", "", s)        # "... by @user in #123"
+        s = re.sub(r"\s+in\s+#\d+.*$", "", s)
+        cleaned = _strip_inline(s)
+        if len(cleaned) >= 8:
+            items.append(cleaned)
+        if len(items) == max_items:
+            break
+    text = "; ".join(items)
+    if len(text) > limit:
+        text = text[:limit].rsplit(" ", 1)[0].rstrip(",.;:") + "..."
+    return text
+
+
+def advisory_text(advisories):
+    """'3 published (highest: high, latest 2026-10-02)' from a list of advisories. '' if none."""
+    if not isinstance(advisories, list) or not advisories:
+        return ""
+    severities = {str(a.get("severity") or "").lower() for a in advisories if isinstance(a, dict)}
+    highest = next((s for s in _SEVERITY_ORDER if s in severities), "")
+    dates = sorted((a.get("published_at") or "")[:10] for a in advisories if isinstance(a, dict))
+    latest = next((d for d in reversed(dates) if d), "")
+    parts = [f"{len(advisories)} published"]
+    bits = [f"highest: {highest}" if highest else "", f"latest {latest}" if latest else ""]
+    detail = ", ".join(b for b in bits if b)
+    return f"{parts[0]} ({detail})" if detail else parts[0]
+
+
+def build_extras(repo, readme, today, release=None, advisories=None):
     """Collect everything render_digest needs for the 'At a glance' section."""
     return {
         "excerpt": readme_excerpt(readme),
         "sections": readme_sections(readme),
         "install": install_hint(readme),
         "release": release_text(release),
+        "whatsnew": release_notes(release),
+        "advisories": advisory_text(advisories),
         "age": age_text(repo.get("created_at"), today),
     }

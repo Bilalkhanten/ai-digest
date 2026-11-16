@@ -9,7 +9,7 @@ from collections import Counter
 from datetime import timedelta
 from html import escape
 
-from digestlib import entry_link
+from digestlib import area_for, entry_link, load_areas
 
 STATS_CSS = """
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(8rem,1fr));gap:.75rem}
@@ -131,13 +131,15 @@ def format_delta(row):
     return f"{sign}{row['delta']:,}{pct}"
 
 
-def render_stats_page(css, entries, infos, stars_now, today, generated_label):
+def render_stats_page(css, entries, infos, stars_now, today, generated_label, areas=None):
     """Full stats.html. `infos` lines up with `entries` (parsed digest pages)."""
     from datetime import date as _date
 
     days = [_date.fromisoformat(e["date"]) for e in entries]
     current, longest = streaks(days, today)
     forks = sum(1 for e in entries if e.get("fork_url"))
+    areas = areas or load_areas()
+    by_area = top_counts([area_for(e["topic"], areas) for e in entries])
     topics = top_counts([e["topic"] for e in entries])
     langs = top_counts([i["language"] for i in infos])
     rows = star_deltas(entries, stars_now)[:15]
@@ -169,6 +171,7 @@ def render_stats_page(css, entries, infos, stars_now, today, generated_label):
         f"<div class='tiles'>{tile_html}</div>"
         "<h2 style='margin-top:1.5rem'>Picks per week (last 12 weeks)</h2>"
         f"{column_chart_svg(weekly_counts(days, today), 'Picks per week')}"
+        "<h2 style='margin-top:1.5rem'>By area</h2>" f"{bar_chart_svg(by_area, 'Picks by area')}"
         "<h2 style='margin-top:1.5rem'>By topic</h2>" f"{bar_chart_svg(topics, 'Picks by topic')}"
         "<h2 style='margin-top:1.5rem'>By language</h2>" f"{bar_chart_svg(langs, 'Picks by language')}"
         "<h2 style='margin-top:1.5rem'>Where are they now?</h2>"
@@ -178,8 +181,9 @@ def render_stats_page(css, entries, infos, stars_now, today, generated_label):
     )
 
 
-def digests_json(entries, infos, generated):
+def digests_json(entries, infos, generated, areas=None):
     """Open-data record for each pick, newest first."""
+    areas = areas or load_areas()
     records = []
     for e, i in zip(entries, infos, strict=True):
         records.append({
@@ -189,10 +193,13 @@ def digests_json(entries, infos, generated):
             "fork_url": e.get("fork_url"),
             "stars_at_pick": e["stars"],
             "topic": e["topic"],
+            "area": area_for(e["topic"], areas),
             "language": i["language"],
             "license": i["license"],
             "description": i["description"],
             "why_picked": i["reason"],
             "latest_release": i["release"],
+            "whats_new": i["whatsnew"],
+            "security_advisories": i["advisories"],
         })
     return {"generated": generated, "count": len(records), "entries": records}

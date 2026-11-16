@@ -9,6 +9,43 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
+# Topic areas used by the website filters and per-area feeds (overridable in config.json).
+DEFAULT_AREAS = {
+    "AI": [
+        "llm", "ai-agents", "rag", "machine-learning", "generative-ai", "deep-learning", "mcp",
+        "nlp", "computer-vision", "langchain", "robotics", "data-science", "diffusion",
+    ],
+    "Platform": [
+        "kubernetes", "devops", "docker", "sre", "monitoring", "observability", "prometheus",
+        "grafana", "opentelemetry", "terraform", "infrastructure-as-code", "gitops", "helm",
+        "cloud-native", "platform-engineering", "ci-cd", "ansible", "service-mesh",
+        "incident-response", "logging", "ebpf", "containers", "argocd",
+    ],
+}
+
+
+def load_areas(path=None):
+    """{area name: [topics]} from config.json, falling back to the built-in defaults."""
+    path = Path(path) if path else ROOT / "config.json"
+    try:
+        areas = json.loads(path.read_text()).get("areas")
+    except (OSError, ValueError):
+        areas = None
+    return areas if isinstance(areas, dict) and areas else DEFAULT_AREAS
+
+
+def area_for(topic, areas):
+    """The area a topic belongs to, or "Other"."""
+    for name, topics in areas.items():
+        if topic in topics:
+            return name
+    return "Other"
+
+
+def area_slug(name):
+    """File-name-safe version of an area name, e.g. "Platform" -> "platform"."""
+    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or "other"
+
 
 def load_state(path=None):
     """Return the list of digest entries from forked.json ([] if missing)."""
@@ -30,6 +67,7 @@ def parse_digest(text):
     info = {
         "description": "", "language": "n/a", "license": "n/a", "summary": "",
         "excerpt": "", "install": "", "release": "", "reason": "",
+        "whatsnew": "", "advisories": "",
     }
     m = re.search(r"^> (.+)$", text, re.M)
     if m:
@@ -43,6 +81,8 @@ def parse_digest(text):
         ("install", r"^Install: `(.+)`$"),
         ("release", r"^- Latest release: (.+)$"),
         ("reason", r"^- Why picked: (.+)$"),
+        ("whatsnew", r"^What's new: (.+)$"),
+        ("advisories", r"^- Security advisories: (.+)$"),
     ):
         m = re.search(pattern, text, re.M)
         if m:

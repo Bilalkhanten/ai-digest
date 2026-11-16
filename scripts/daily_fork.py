@@ -23,7 +23,7 @@ import urllib.request
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from digestlib import ask_claude, entry_link, parse_date
+from digestlib import DEFAULT_AREAS, ask_claude, entry_link, parse_date
 from glance import build_extras
 
 API = "https://api.github.com"
@@ -47,6 +47,7 @@ DEFAULT_CONFIG = {
         "logging", "data-science", "ebpf", "containers", "diffusion",
         "argocd",
     ],
+    "areas": DEFAULT_AREAS,         # topic groups for the website filters and per-area feeds
     "min_stars": 100,
     "max_age_days": 30,
     "fork_every_days": 1,          # 1 = fork daily, 7 = weekly, 0 = never (digest only)
@@ -255,6 +256,16 @@ def fetch_release(repo):
         return None
 
 
+def fetch_advisories(repo):
+    """Published security advisories (public data), or None if they couldn't be fetched."""
+    try:
+        path = f"/repos/{repo['full_name']}/security-advisories?state=published&per_page=100"
+        data = json.loads(gh("GET", path))
+    except (ApiError, ValueError):
+        return None
+    return data if isinstance(data, list) else None
+
+
 _RELEASES = {}
 
 
@@ -361,9 +372,13 @@ def render_digest(today, topic, repo, summary, extras=None):
         lines.append(f"- Forks: {repo['forks_count']:,} | Open issues: {repo['open_issues_count']:,}")
     if extras.get("release"):
         lines.append(f"- Latest release: {extras['release']}")
+    if extras.get("advisories"):
+        lines.append(f"- Security advisories: {extras['advisories']}")
     glance = []
     if extras.get("excerpt"):
         glance.append(f"README excerpt: {extras['excerpt']}")
+    if extras.get("whatsnew"):
+        glance.append(f"What's new: {extras['whatsnew']}")
     if extras.get("install"):
         glance.append(f"Install: `{extras['install']}`")
     if extras.get("sections"):
@@ -466,7 +481,7 @@ def main():
 
     do_fork = should_fork(state, today)
     release = release_for(repo)
-    extras = build_extras(repo, readme, today_d, release)
+    extras = build_extras(repo, readme, today_d, release, fetch_advisories(repo))
     extras["reason"] = reason_text(repo, today_d, release)
     page = render_digest(today, topic, repo, claude_summary(repo, readme), extras)
 

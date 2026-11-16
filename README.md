@@ -16,6 +16,21 @@ toward your contribution graph. See [INDEX.md](INDEX.md) for the log.
 | 2026-11-16 | [EverMind-AI/Raven](https://github.com/EverMind-AI/Raven) | 6,225 | llm |
 <!-- LATEST-PICKS:END -->
 
+## How it works
+
+```mermaid
+flowchart TD
+    T(["Schedule 07:17 UTC or manual run"]) --> V["verify: offline tests"]
+    V -->|pass| F["fork job: pick, fork, commit"]
+    V -->|fail| A["failure issue"]
+    F -->|fail| A
+    F --> N["notify: @mention on the digest log issue"]
+    F --> P["optional: site and RSS on Pages"]
+```
+
+Design notes, the data flow, known limits and a runbook are in
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
 ## Pipeline
 
 | Workflow | Trigger | What it does |
@@ -80,7 +95,9 @@ The API client retries transient errors (429, 5xx, network) up to 3 times.
 Every page is built from the repo's own data, with no API key and no cost: name, description,
 stars, language, license, last push, topics, age, forks, open issues and the latest release,
 plus an **At a glance** section with a short README excerpt, the first install command found
-in the README, and the README's main sections. Badges, HTML, links and `@` mentions are
+in the README, and the README's main sections. When the repo has a recent release, its first few
+release-note lines appear as **What's new**, and if it has published security advisories, a
+one-line summary of them (count, highest severity, latest date) is shown. Both are public data. Badges, HTML, links and `@` mentions are
 stripped from the excerpt. If you add `ANTHROPIC_API_KEY`, a Claude-written 3-bullet summary
 is added on top; that part is optional.
 
@@ -91,6 +108,7 @@ Settings live in `config.json`; environment variables (`MIN_STARS`, `MAX_AGE_DAY
 
 | Key | Default | Meaning |
 |---|---|---|
+| `areas` | AI, Platform | which topics belong to which area; drives the website's area filter and per-area RSS feeds |
 | `topics` | 36 topics | rotated by day of year; AI and platform topics (Kubernetes, DevOps, Docker, SRE, monitoring, observability, Terraform, GitOps...) are interleaved so the feed alternates |
 | `min_stars` / `max_age_days` | 100 / 30 | popularity floor, and how recently the repo was pushed |
 | `fork_every_days` | 1 | `1` daily, `7` weekly, `0` never (digest only) |
@@ -118,6 +136,9 @@ The digest can be published as a small site with an RSS feed. It is off until yo
 1. Repo Settings > Pages > Build and deployment > Source: **GitHub Actions**.
 2. Repo Settings > Secrets and variables > Actions > Variables > New repository variable:
    `ENABLE_PAGES` = `true`.
+
+The site can be filtered by **area** (AI or Platform) and by topic, and offers a separate RSS feed
+for each area (`feed-ai.xml`, `feed-platform.xml`) as well as the combined `feed.xml`.
 
 The site has a **Stats** page (streaks, picks per week, by topic and language, and a
 "where are they now" table comparing each pick's stars then and now; charts are plain SVG)

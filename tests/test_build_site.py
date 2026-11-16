@@ -54,6 +54,13 @@ class BuildSiteTests(unittest.TestCase):
         self.assertIn("2026-W47", html)            # weekly link
         self.assertIn("1,234 stars", html)
 
+    def test_whatsnew_and_advisories_are_shown_and_escaped(self):
+        digest = self.root / "digest" / "2026-11-16.md"
+        digest.write_text(GOOD + "\nWhat's new: <b>Faster</b> startup\n- Security advisories: 2 published (highest: high)\n")
+        html = bs.render_index(STATE[:1], [], "", "")
+        self.assertIn("What's new: &lt;b&gt;Faster&lt;/b&gt; startup", html)
+        self.assertNotIn("<b>Faster</b>", html)
+
     def test_glance_facts_are_shown_and_escaped(self):
         html = (self.out / "index.html").read_text()
         self.assertIn("<code>pip install acme-agent</code>", html)
@@ -139,7 +146,7 @@ class TopicFilterTests(unittest.TestCase):
     def test_every_article_carries_its_topic(self):
         html = self.html()
         self.assertEqual(html.count("<article data-topic="), 4)
-        self.assertIn("<article data-topic='kubernetes'>", html)
+        self.assertIn("<article data-topic='kubernetes' data-area='Platform'>", html)
 
     def test_topics_are_escaped_in_attributes_and_labels(self):
         html = self.html()
@@ -159,6 +166,83 @@ class TopicFilterTests(unittest.TestCase):
 
     def test_empty_site_has_no_filter_bar(self):
         self.assertNotIn("id='filters'", bs.render_index([], [], "", ""))
+
+
+class AreaTests(unittest.TestCase):
+    ENTRIES = TopicFilterTests.ENTRIES
+
+    def test_area_bar_shows_each_area_with_counts_and_starts_hidden(self):
+        html = bs.render_index(self.ENTRIES, [], "", "")
+        self.assertIn("<nav id='areas' class='chips' aria-label='Filter by area' hidden>", html)
+        self.assertIn("All areas <span>4</span>", html)
+        self.assertIn("Platform <span>2</span>", html)
+        self.assertIn("AI <span>1</span>", html)
+        self.assertLess(html.index("id='areas'"), html.index("id='filters'"))
+
+    def test_topic_chips_know_their_area(self):
+        html = bs.render_index(self.ENTRIES, [], "", "")
+        self.assertIn("data-topic='kubernetes' data-area='Platform'", html)
+        self.assertIn("data-topic='llm' data-area='AI'", html)
+
+    def test_no_area_bar_when_everything_is_one_area(self):
+        only_ai = [{"date": "2026-11-18", "repo": "a/b", "stars": 1, "topic": "llm", "fork_url": None},
+                   {"date": "2026-11-17", "repo": "c/d", "stars": 1, "topic": "rag", "fork_url": None}]
+        self.assertNotIn("id='areas'", bs.render_index(only_ai, [], "", ""))
+
+    def test_custom_areas_are_respected_and_escaped(self):
+        html = bs.render_index(self.ENTRIES[:1], [], "", "", areas={"<i>X</i>": ["kubernetes"]})
+        self.assertIn("data-area='&lt;i&gt;X&lt;/i&gt;'", html)
+        self.assertNotIn("<i>X</i>", html)
+
+    def test_feed_links_are_listed_when_given(self):
+        html = bs.render_index(self.ENTRIES, [], "", "", feeds=[("All", "feed.xml"), ("AI", "feed-ai.xml")])
+        self.assertIn("href='feed-ai.xml'", html)
+        self.assertIn("RSS: <a href='feed.xml'>All</a> &middot; <a href='feed-ai.xml'>AI</a>", html)
+        self.assertEqual(html.count("rel='alternate'"), 2)
+
+
+class PerAreaFeedTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        for p in (mock.patch.object(bs, "DIGEST_DIR", self.root / "digest"),
+                  mock.patch.object(bs, "WEEKLY_DIR", self.root / "digest" / "weekly")):
+            p.start()
+        self.addCleanup(mock.patch.stopall)
+        self.addCleanup(self.tmp.cleanup)
+
+    def build(self, entries):
+        return bs.build(self.root / "site", state=entries, now=datetime(2026, 11, 20, tzinfo=timezone.utc))
+
+    def entries(self):
+        return TopicFilterTests.ENTRIES[:3]    # kubernetes x2 (Platform), llm (AI)
+
+    def test_one_feed_per_area_plus_the_combined_feed(self):
+        out = self.build(self.entries())
+        self.assertEqual(sorted(p.name for p in out.glob("feed*.xml")), ["feed-ai.xml", "feed-platform.xml", "feed.xml"])
+
+    def test_each_area_feed_only_contains_its_own_picks(self):
+        out = self.build(self.entries())
+        titles = lambda f: [i.findtext("title") for i in ET.fromstring((out / f).read_text()).findall("./channel/item")]  # noqa: E731
+        self.assertEqual(sorted(titles("feed-platform.xml")), ["a/k1", "b/k2"])
+        self.assertEqual(titles("feed-ai.xml"), ["c/l1"])
+        self.assertEqual(len(titles("feed.xml")), 3)
+        self.assertEqual(ET.fromstring((out / "feed-ai.xml").read_text()).findtext("./channel/title"), "Repo digest: AI")
+
+    def test_single_area_site_writes_only_the_combined_feed(self):
+        only_ai = [e for e in self.entries() if e["topic"] == "llm"]
+        out = self.build(only_ai)
+        self.assertEqual([p.name for p in out.glob("feed*.xml")], ["feed.xml"])
+
+    def test_area_is_in_the_open_data(self):
+        out = self.build(self.entries())
+        data = json.loads((out / "digests.json").read_text())
+        self.assertEqual({e["repo"]: e["area"] for e in data["entries"]},
+                         {"a/k1": "Platform", "b/k2": "Platform", "c/l1": "AI"})
+
+    def test_stats_page_has_an_area_chart(self):
+        out = self.build(self.entries())
+        self.assertIn("By area", (out / "stats.html").read_text())
 
 
 class LanguageDisplayTests(unittest.TestCase):

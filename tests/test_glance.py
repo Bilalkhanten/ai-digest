@@ -115,6 +115,45 @@ class AgeAndReleaseTests(unittest.TestCase):
         self.assertEqual(gl.release_text({"tag_name": "v1 <script>"}), "v1script")
 
 
+class ReleaseNotesTests(unittest.TestCase):
+    def test_takes_the_first_meaningful_lines_and_drops_authors_and_noise(self):
+        body = ("## What's Changed\n* Faster startup by @alice in https://github.com/o/r/pull/1\n"
+                "* Fix a crash on exit in #2\n- Add `--json` output flag\n* fourth item is ignored\n\n"
+                "## New Contributors\n* @bob made their first contribution\n**Full Changelog**: https://x\n")
+        text = gl.release_notes({"body": body})
+        self.assertEqual(text, "Faster startup; Fix a crash on exit; Add --json output flag")
+        for bad in ("@", "http", "#2", "Full Changelog"):
+            self.assertNotIn(bad, text)
+
+    def test_empty_missing_and_code_only_bodies(self):
+        self.assertEqual(gl.release_notes(None), "")
+        self.assertEqual(gl.release_notes({"body": None}), "")
+        self.assertEqual(gl.release_notes({"body": "```\nthis is code and is ignored entirely\n```"}), "")
+
+    def test_long_notes_are_truncated(self):
+        text = gl.release_notes({"body": "* " + "word " * 100}, limit=50)
+        self.assertTrue(text.endswith("..."))
+        self.assertLessEqual(len(text), 54)
+
+    def test_html_is_stripped(self):
+        self.assertEqual(gl.release_notes({"body": "* <img src=x onerror=alert(1)> Better caching layer"}), "Better caching layer")
+
+
+class AdvisoryTextTests(unittest.TestCase):
+    def test_summary_with_highest_severity_and_latest_date(self):
+        adv = [{"severity": "medium", "published_at": "2026-03-01T00:00:00Z"},
+               {"severity": "critical", "published_at": "2026-08-09T00:00:00Z"},
+               {"severity": "low", "published_at": "2025-12-31T00:00:00Z"}]
+        self.assertEqual(gl.advisory_text(adv), "3 published (highest: critical, latest 2026-08-09)")
+
+    def test_empty_none_and_malformed_input(self):
+        self.assertEqual(gl.advisory_text([]), "")
+        self.assertEqual(gl.advisory_text(None), "")
+        self.assertEqual(gl.advisory_text({"message": "x"}), "")
+        self.assertEqual(gl.advisory_text([{}]), "1 published")
+        self.assertEqual(gl.advisory_text(["junk"]), "1 published")
+
+
 class BuildExtrasTests(unittest.TestCase):
     def test_collects_everything(self):
         extras = gl.build_extras({"created_at": "2025-03-01T00:00:00Z"}, README, date(2026, 11, 16),
@@ -124,6 +163,8 @@ class BuildExtrasTests(unittest.TestCase):
         self.assertEqual(extras["age"], "20 months ago")
         self.assertIn("Quickstart", extras["sections"])
         self.assertTrue(extras["excerpt"])
+        self.assertEqual(extras["whatsnew"], "")
+        self.assertEqual(extras["advisories"], "")
 
 
 if __name__ == "__main__":

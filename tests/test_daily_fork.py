@@ -52,8 +52,9 @@ LONG_README = "# Project\n" + "A useful description of the project. " * 30
 class FakeGitHub:
     """Routes df.gh() calls to canned responses and records writes."""
 
-    def __init__(self, items, readmes=None, releases=None, readme_errors=None):
+    def __init__(self, items, readmes=None, releases=None, readme_errors=None, advisories=None):
         self.items = items
+        self.advisories = advisories or {}
         self.readmes = readmes or {}
         self.readme_errors = readme_errors or {}
         self.releases = releases or {}
@@ -70,6 +71,11 @@ class FakeGitHub:
             if name in self.readme_errors:
                 raise df.ApiError(self.readme_errors[name])
             return self.readmes.get(path.split("/repos/")[1].rsplit("/readme", 1)[0], LONG_README)
+        if "/security-advisories" in path:
+            name = path.split("/repos/")[1].split("/security-advisories")[0]
+            if name not in self.advisories:
+                raise df.ApiError("GET advisories -> HTTP 404")
+            return json.dumps(self.advisories[name])
         if path.endswith("/releases/latest"):
             name = path.split("/repos/")[1].rsplit("/releases/latest", 1)[0]
             if name not in self.releases:
@@ -165,6 +171,26 @@ class MainTests(unittest.TestCase):
         self.assertIn("fork_url=https://github.com/me/agent", outputs)
         self.assertIn("commit_email=42+me@users.noreply.github.com", outputs)
         self.assertIn("Digest for `acme/agent`", self.summary.read_text())
+
+    def test_real_run_page_has_whatsnew_and_advisories(self):
+        fake = FakeGitHub(
+            [make_repo("acme/agent", stars=900)],
+            releases={"acme/agent": {"tag_name": "v3", "published_at": "2026-11-10T00:00:00Z",
+                                     "body": "## What's Changed\n* Faster startup by @dev in #12\n* Fix crash on exit by @x in #13\n"}},
+            advisories={"acme/agent": [{"severity": "critical", "published_at": "2026-09-09T00:00:00Z"}]},
+        )
+        with mock.patch.object(df, "gh", fake):
+            df.main()
+        page = next((self.root / "digest").glob("*.md")).read_text()
+        self.assertIn("What's new: Faster startup; Fix crash on exit", page)
+        self.assertIn("- Security advisories: 1 published (highest: critical, latest 2026-09-09)", page)
+
+    def test_missing_advisories_and_releases_just_leave_the_lines_out(self):
+        with mock.patch.object(df, "gh", FakeGitHub([make_repo("acme/agent")])):
+            df.main()
+        page = next((self.root / "digest").glob("*.md")).read_text()
+        self.assertNotIn("Security advisories", page)
+        self.assertNotIn("What's new", page)
 
     def test_real_run_refreshes_the_readme_block(self):
         with mock.patch.object(df, "gh", FakeGitHub([make_repo("acme/agent", stars=900)])):
@@ -582,6 +608,33 @@ class ReasonTests(unittest.TestCase):
         page = df.render_digest("2026-11-16", "llm", make_repo(), "", {"reason": "500 stars, pushed today"})
         self.assertIn("- Why picked: 500 stars, pushed today", page)
         self.assertEqual(digestlib.parse_digest(page)["reason"], "500 stars, pushed today")
+
+
+class WhatsNewAndAdvisoryTests(unittest.TestCase):
+    ADVISORIES = [
+        {"ghsa_id": "GHSA-1", "severity": "high", "published_at": "2026-10-02T00:00:00Z"},
+        {"ghsa_id": "GHSA-2", "severity": "low", "published_at": "2026-01-05T00:00:00Z"},
+    ]
+
+    def test_lines_are_rendered_and_parse_back(self):
+        import digestlib
+        extras = {"whatsnew": "Faster startup; fixes a crash", "advisories": "2 published (highest: high, latest 2026-10-02)"}
+        page = df.render_digest("2026-11-16", "llm", make_repo(), "", extras)
+        self.assertIn("What's new: Faster startup; fixes a crash", page)
+        self.assertIn("- Security advisories: 2 published (highest: high, latest 2026-10-02)", page)
+        info = digestlib.parse_digest(page)
+        self.assertEqual(info["whatsnew"], "Faster startup; fixes a crash")
+        self.assertTrue(info["advisories"].startswith("2 published"))
+
+    def test_fetch_advisories_returns_a_list_or_none(self):
+        fake = FakeGitHub([], advisories={"o/a": self.ADVISORIES})
+        with mock.patch.object(df, "gh", fake):
+            self.assertEqual(len(df.fetch_advisories(make_repo("o/a"))), 2)
+            self.assertIsNone(df.fetch_advisories(make_repo("o/none")))
+
+    def test_non_list_json_is_ignored(self):
+        with mock.patch.object(df, "gh", lambda *a, **k: json.dumps({"message": "Not Found"})):
+            self.assertIsNone(df.fetch_advisories(make_repo("o/x")))
 
 
 class ConfigTests(unittest.TestCase):

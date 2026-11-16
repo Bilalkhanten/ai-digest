@@ -45,6 +45,41 @@ class EntryLinkTests(unittest.TestCase):
         self.assertEqual(dl.entry_link({"repo": "a/b"}), "https://github.com/a/b")
 
 
+class AreaTests(unittest.TestCase):
+    CFG = Path(__file__).resolve().parent.parent / "config.json"
+
+    def test_built_in_defaults_match_the_shipped_config(self):
+        import json
+        self.assertEqual(dl.DEFAULT_AREAS, json.loads(self.CFG.read_text())["areas"])
+
+    def test_every_rotation_topic_has_exactly_one_area(self):
+        import json
+        cfg = json.loads(self.CFG.read_text())
+        listed = [t for topics in cfg["areas"].values() for t in topics]
+        self.assertEqual(sorted(listed), sorted(cfg["topics"]))
+        self.assertEqual(len(listed), len(set(listed)))
+
+    def test_area_for_and_slug(self):
+        areas = dl.DEFAULT_AREAS
+        self.assertEqual(dl.area_for("llm", areas), "AI")
+        self.assertEqual(dl.area_for("kubernetes", areas), "Platform")
+        self.assertEqual(dl.area_for("something-new", areas), "Other")
+        self.assertEqual(dl.area_slug("Platform"), "platform")
+        self.assertEqual(dl.area_slug("Cloud & Infra!"), "cloud-infra")
+        self.assertEqual(dl.area_slug("!!!"), "other")
+
+    def test_load_areas_falls_back_when_missing_or_invalid(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            self.assertEqual(dl.load_areas(Path(d) / "nope.json"), dl.DEFAULT_AREAS)
+            bad = Path(d) / "bad.json"
+            bad.write_text("{not json")
+            self.assertEqual(dl.load_areas(bad), dl.DEFAULT_AREAS)
+            custom = Path(d) / "c.json"
+            custom.write_text('{"areas": {"X": ["a"]}}')
+            self.assertEqual(dl.load_areas(custom), {"X": ["a"]})
+
+
 class AskClaudeTests(unittest.TestCase):
     def test_no_key_means_no_network_call(self):
         with mock.patch.object(dl.urllib.request, "urlopen") as op:

@@ -81,8 +81,10 @@ class PageAndJsonTests(unittest.TestCase):
         {"date": "2026-11-15", "repo": "evil/<b>x", "stars": 50, "topic": "rag", "fork_url": None},
     ]
     INFOS = [
-        {"language": "Python", "license": "MIT", "description": "d", "reason": "1,000 stars", "release": "v1 (2026-11-01)"},
-        {"language": "n/a", "license": "n/a", "description": "", "reason": "", "release": ""},
+        {"language": "Python", "license": "MIT", "description": "d", "reason": "1,000 stars",
+         "release": "v1 (2026-11-01)", "whatsnew": "Faster", "advisories": "1 published (highest: high)"},
+        {"language": "n/a", "license": "n/a", "description": "", "reason": "", "release": "",
+         "whatsnew": "", "advisories": ""},
     ]
 
     def page(self, stars_now):
@@ -98,6 +100,18 @@ class PageAndJsonTests(unittest.TestCase):
         self.assertIn("n/a", html)
         self.assertNotIn("evil/<b>x", html)
         self.assertIn("evil/&lt;b&gt;x", html)
+
+    def test_page_has_a_by_area_chart(self):
+        html = st.render_stats_page("", self.ENTRIES, self.INFOS, {}, TODAY, "x", areas={"AI": ["llm"], "Plat": ["rag"]})
+        self.assertIn("By area", html)
+        self.assertIn("Picks by area", html)
+
+    def test_json_has_area_and_the_new_fields(self):
+        data = st.digests_json(self.ENTRIES, self.INFOS, "t", areas={"AI": ["llm"]})
+        first = data["entries"][0]
+        self.assertEqual((first["area"], first["whats_new"]), ("AI", "Faster"))
+        self.assertEqual(first["security_advisories"], "1 published (highest: high)")
+        self.assertEqual(data["entries"][1]["area"], "Other")
 
     def test_json_records(self):
         data = st.digests_json(self.ENTRIES, self.INFOS, "2026-11-16T12:00:00+00:00")
