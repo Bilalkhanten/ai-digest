@@ -45,6 +45,20 @@ jobs:
       - name: shellcheck
         run: shellcheck scripts/*.sh
 
+  authors:
+    name: Sole-author check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+      - name: Every new commit is solely yours (no other author or Co-authored-by)
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python3 scripts/check_authors.py
+
   workflows:
     name: Lint workflow files (actionlint)
     runs-on: ubuntu-latest

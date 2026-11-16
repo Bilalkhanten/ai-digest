@@ -49,7 +49,7 @@ change is a commit, so the history is the audit log and a same-day rerun is a no
 
 | Workflow | When | Job |
 |---|---|---|
-| CI | every push and PR | tests on Python 3.10 to 3.13, ruff, shellcheck, actionlint |
+| CI | every push and PR | tests on Python 3.10 to 3.13, ruff, shellcheck, actionlint, and a sole-author check |
 | Daily repo fork | 07:17 UTC | tests gate the fork; pick, fork, commit; notify; optional site publish |
 | Weekly roll-up | Sundays 18:23 UTC | weekly page with topic, language and star-gain stats |
 | Watchdog | daily 12:07 UTC | opens an issue if no digest for 2+ days |
@@ -69,6 +69,9 @@ change is a commit, so the history is the audit log and a same-day rerun is a no
 - **Least privilege everywhere.** Workflows start with no permissions; each job asks for the
   minimum. First-party actions are pinned to commit SHAs and kept current by Dependabot. The
   token is a classic PAT with only `public_repo`, and its expiry is monitored.
+- **One contributor, enforced.** CI fails if a new commit has an author or committer outside
+  `.github/allowed-authors.txt`, or a `Co-authored-by` line for anyone else. It is a separate job,
+  not part of the daily run's test gate, so a slip can never stop the daily digest.
 - **Independent concurrency groups.** Each workflow queues on its own, so one stuck run cannot
   block another.
 - **Protect history, not the workflow.** The `main` ruleset blocks force-pushes and deletion but

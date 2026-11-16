@@ -35,7 +35,7 @@ Design notes, the data flow, known limits and a runbook are in
 
 | Workflow | Trigger | What it does |
 |---|---|---|
-| **CI** (`ci.yml`) | every push, PRs to `main` | offline tests on Python 3.10 to 3.13, `ruff`, `shellcheck`, `actionlint` |
+| **CI** (`ci.yml`) | every push, PRs to `main` | offline tests on Python 3.10 to 3.13, `ruff`, `shellcheck`, `actionlint`, and a sole-author check (only the identities in `.github/allowed-authors.txt`, no `Co-authored-by`) |
 | **Daily repo fork** (`daily-fork.yml`) | 07:17 UTC daily, manual | `verify` (tests) gates `fork` (pick, fork, commit digest). On failure it opens one issue; the next success closes it |
 | **Token health** (`token-health.yml`) | Mondays 06:43 UTC, manual | checks `FORK_PAT` is valid, has only `public_repo`, and is not within 14 days of expiry; opens an issue if not |
 | **Weekly roll-up** (`weekly-rollup.yml`) | Sundays 18:23 UTC, manual | writes `digest/weekly/YYYY-Www.md` (repos, topic and language counts, optional Claude themes) and commits it |
