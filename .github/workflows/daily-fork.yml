@@ -125,6 +125,8 @@ jobs:
         with:
           ref: ${{ needs.fork.outputs.sha }}
       - name: Build site
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: python3 scripts/build_site.py site
       - uses: actions/upload-pages-artifact@v3
         with:

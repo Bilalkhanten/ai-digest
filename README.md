@@ -87,11 +87,19 @@ Settings live in `config.json`; environment variables (`MIN_STARS`, `MAX_AGE_DAY
 | `min_stars` / `max_age_days` | 100 / 30 | popularity floor, and how recently the repo was pushed |
 | `fork_every_days` | 1 | `1` daily, `7` weekly, `0` never (digest only) |
 | `min_readme_chars` | 500 | skip repos with a stub README |
+| `owner_cooldown_days` | 21 | avoid picking the same owner again within this many days |
+| `release_bonus_days` / `release_check_top` | 30 / 6 | among the first N candidates, those with a release this recent go first |
 | `exclude_repos`, `exclude_owners` | empty | never pick these (`owner/name`, owner login) |
 | `exclude_name_patterns` | `^awesome`, `interview`, `roadmap` | regexes matched against the repo name |
 | `exclude_description_keywords` | curated list, awesome list, ... | skip if the description contains any |
 
-Candidates are picked at random, weighted towards more popular repos. If a digest-only
+Picks are random but weighted by a score of how interesting a repo is right now: stars, how
+fast it has been gaining them (stars per day since creation), and how recently it was pushed.
+Among the first few candidates, ones with a recent release go first, and an owner picked in the
+last 21 days is skipped when there is another choice. Each digest says why it was picked, for
+example `1,772 stars, ~19.7 stars/day since creation, pushed today, release 4 days ago`.
+
+If a digest-only
 day happens (`fork_every_days` above 1), the digest and its commit are still written;
 only the fork is skipped.
 
@@ -102,6 +110,10 @@ The digest can be published as a small site with an RSS feed. It is off until yo
 1. Repo Settings > Pages > Build and deployment > Source: **GitHub Actions**.
 2. Repo Settings > Secrets and variables > Actions > Variables > New repository variable:
    `ENABLE_PAGES` = `true`.
+
+The site has a **Stats** page (streaks, picks per week, by topic and language, and a
+"where are they now" table comparing each pick's stars then and now; charts are plain SVG)
+and an **Open data** file, `digests.json`, with one record per pick.
 
 After the next real run the site appears at `https://<your-login>.github.io/ai-digest/`,
 with the feed at `.../feed.xml`. Preview locally with `python3 scripts/build_site.py site`.

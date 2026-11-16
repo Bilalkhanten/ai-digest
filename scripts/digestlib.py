@@ -29,7 +29,7 @@ def parse_digest(text):
     """Pull the fields we need back out of a rendered digest page."""
     info = {
         "description": "", "language": "n/a", "license": "n/a", "summary": "",
-        "excerpt": "", "install": "", "release": "",
+        "excerpt": "", "install": "", "release": "", "reason": "",
     }
     m = re.search(r"^> (.+)$", text, re.M)
     if m:
@@ -42,6 +42,7 @@ def parse_digest(text):
         ("excerpt", r"^README excerpt: (.+)$"),
         ("install", r"^Install: `(.+)`$"),
         ("release", r"^- Latest release: (.+)$"),
+        ("reason", r"^- Why picked: (.+)$"),
     ):
         m = re.search(pattern, text, re.M)
         if m:

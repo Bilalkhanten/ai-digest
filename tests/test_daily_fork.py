@@ -6,6 +6,7 @@ import sys
 import tempfile
 import unittest
 import urllib.error
+from datetime import date
 from pathlib import Path
 from unittest import mock
 
@@ -13,9 +14,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 import daily_fork as df  # noqa: E402
 
 
-def make_repo(name="acme/agent", stars=500, owner=None):
+def make_repo(name="acme/agent", stars=500, owner=None, created_at=None, pushed_at="2026-11-16T10:00:00Z"):
     owner = owner or name.split("/")[0]
-    return {
+    repo = {
         "full_name": name,
         "owner": {"login": owner},
         "html_url": f"https://github.com/{name}",
@@ -23,9 +24,12 @@ def make_repo(name="acme/agent", stars=500, owner=None):
         "stargazers_count": stars,
         "language": "Python",
         "license": {"spdx_id": "MIT"},
-        "pushed_at": "2026-11-16T10:00:00Z",
+        "pushed_at": pushed_at,
         "topics": ["llm", "agents"],
     }
+    if created_at:
+        repo["created_at"] = created_at
+    return repo
 
 
 LONG_README = "# Project\n" + "A useful description of the project. " * 30
@@ -157,6 +161,7 @@ class MainTests(unittest.TestCase):
         self.assertIn("Install: `pip install acme-agent`", page)
         self.assertIn("README sections: Quickstart", page)
         self.assertIn("README excerpt: Acme Agent is a framework", page)
+        self.assertIn("- Why picked: 900 stars", page)
 
     def test_second_run_same_day_is_a_noop(self):
         fake = FakeGitHub([make_repo("acme/agent")])
@@ -341,6 +346,103 @@ class AtAGlanceTests(unittest.TestCase):
         fake = FakeGitHub([], releases={"a/rel": {"tag_name": "v2", "published_at": "2026-01-02T00:00:00Z"}})
         with mock.patch.object(df, "gh", fake):
             self.assertEqual(df.fetch_release(make_repo("a/rel"))["tag_name"], "v2")
+
+
+TODAY = date(2026, 11, 16)
+
+
+class MomentumTests(unittest.TestCase):
+    def test_signals(self):
+        repo = make_repo(stars=3000, created_at="2026-08-18T00:00:00Z", pushed_at="2026-11-13T00:00:00Z")
+        m = df.momentum(repo, TODAY)
+        self.assertEqual((m["stars"], m["pushed_days"]), (3000, 3))
+        self.assertAlmostEqual(m["velocity"], 3000 / 90, places=1)
+
+    def test_young_repos_use_a_30_day_floor_and_missing_dates_are_safe(self):
+        self.assertAlmostEqual(df.momentum(make_repo(stars=300, created_at="2026-11-15T00:00:00Z"), TODAY)["velocity"], 10.0)
+        bare = {"stargazers_count": 10}
+        m = df.momentum(bare, TODAY)
+        self.assertEqual((m["velocity"], m["pushed_days"]), (0.0, None))
+
+    def test_growing_and_fresh_beats_stale_at_equal_stars(self):
+        hot = make_repo(stars=1000, created_at="2026-09-16T00:00:00Z", pushed_at="2026-11-16T00:00:00Z")
+        cold = make_repo(stars=1000, created_at="2019-01-01T00:00:00Z", pushed_at="2026-10-20T00:00:00Z")
+        self.assertGreater(df.base_score(hot, TODAY), df.base_score(cold, TODAY))
+
+    def test_more_stars_score_higher(self):
+        a, b = make_repo(stars=200), make_repo(stars=20000)
+        self.assertGreater(df.base_score(b, TODAY), df.base_score(a, TODAY))
+
+
+class OwnerCooldownTests(unittest.TestCase):
+    STATE = [{"date": "2026-11-10", "repo": "Acme/old"}, {"date": "2026-09-01", "repo": "Longago/x"}]
+
+    def test_recent_owners_respects_the_window_and_case(self):
+        self.assertEqual(df.recent_owners(self.STATE, TODAY, 21), {"acme"})
+        self.assertEqual(df.recent_owners(self.STATE, TODAY, 90), {"acme", "longago"})
+
+    def test_cooldown_owner_is_skipped_when_alternatives_exist(self):
+        items = [make_repo("acme/one", stars=9000), make_repo("other/two", stars=200)]
+        with mock.patch.object(df, "gh", FakeGitHub(items)):
+            _, pool = df.find_candidates(set(), "me", {"acme"})
+        self.assertEqual([r["full_name"] for r in pool], ["other/two"])
+
+    def test_cooldown_is_ignored_when_it_would_leave_nothing(self):
+        with mock.patch.object(df, "gh", FakeGitHub([make_repo("acme/one")])):
+            _, pool = df.find_candidates(set(), "me", {"acme"})
+        self.assertEqual([r["full_name"] for r in pool], ["acme/one"])
+
+
+class ReleasePreferenceTests(unittest.TestCase):
+    def setUp(self):
+        df._RELEASES.clear()
+
+    def test_recent_release_moves_up_and_order_inside_groups_is_kept(self):
+        pool = [make_repo(f"o/r{i}") for i in range(4)]
+        releases = {
+            "o/r2": {"tag_name": "v1", "published_at": "2026-11-10T00:00:00Z"},   # 6 days: recent
+            "o/r3": {"tag_name": "v0", "published_at": "2025-01-01T00:00:00Z"},   # old
+        }
+        with mock.patch.object(df, "gh", FakeGitHub([], releases=releases)):
+            ordered = df.prefer_recent_release(pool, TODAY)
+        self.assertEqual([r["full_name"] for r in ordered], ["o/r2", "o/r0", "o/r1", "o/r3"])
+
+    def test_only_the_top_n_are_checked(self):
+        pool = [make_repo(f"o/r{i}") for i in range(10)]
+        fake = FakeGitHub([])
+        with mock.patch.object(df, "gh", fake), mock.patch.dict(df.CONFIG, {"release_check_top": 3}):
+            ordered = df.prefer_recent_release(pool, TODAY)
+        self.assertEqual(len([c for c in fake.calls if "releases" in c[1]]), 3)
+        self.assertEqual(len(ordered), 10)
+
+    def test_release_is_looked_up_once_per_repo(self):
+        fake = FakeGitHub([], releases={"o/a": {"tag_name": "v1", "published_at": "2026-11-15T00:00:00Z"}})
+        with mock.patch.object(df, "gh", fake):
+            df.release_for(make_repo("o/a"))
+            df.release_for(make_repo("o/a"))
+        self.assertEqual(len(fake.calls), 1)
+
+
+class ReasonTests(unittest.TestCase):
+    def test_full_reason(self):
+        repo = make_repo(stars=1772, created_at="2026-08-18T00:00:00Z", pushed_at="2026-11-16T05:00:00Z")
+        rel = {"tag_name": "v1", "published_at": "2026-11-12T00:00:00Z"}
+        self.assertEqual(
+            df.reason_text(repo, TODAY, rel),
+            "1,772 stars, ~19.7 stars/day since creation, pushed today, release 4 days ago",
+        )
+
+    def test_minimal_reason_and_singular_day(self):
+        bare = {"stargazers_count": 500}
+        self.assertEqual(df.reason_text(bare, TODAY, None), "500 stars")
+        repo = make_repo(stars=500, pushed_at="2026-11-15T00:00:00Z")
+        self.assertEqual(df.reason_text(repo, TODAY, None), "500 stars, pushed 1 day ago")
+
+    def test_reason_appears_on_the_page_and_parses_back(self):
+        import digestlib
+        page = df.render_digest("2026-11-16", "llm", make_repo(), "", {"reason": "500 stars, pushed today"})
+        self.assertIn("- Why picked: 500 stars, pushed today", page)
+        self.assertEqual(digestlib.parse_digest(page)["reason"], "500 stars, pushed today")
 
 
 class ConfigTests(unittest.TestCase):

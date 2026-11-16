@@ -1,4 +1,5 @@
 """Offline tests for scripts/build_site.py."""
+import json
 import sys
 import tempfile
 import unittest
@@ -73,6 +74,47 @@ class BuildSiteTests(unittest.TestCase):
         self.assertTrue(items[0].findtext("pubDate").endswith("+0000"))
         self.assertIn("An agent framework.", items[1].findtext("description"))
         self.assertEqual(root.findtext("./channel/link"), "https://me.github.io/ai-digest/")
+
+
+class StatsAndDataTests(unittest.TestCase):
+    def setUp(self):
+        BuildSiteTests.setUp(self)
+
+    tearDown = BuildSiteTests.tearDown
+
+    def test_stats_page_and_open_data_are_written(self):
+        out = bs.build(self.root / "site2", state=STATE, now=datetime(2026, 11, 17, 12, tzinfo=timezone.utc),
+                       stars_now={"acme/agent": 2000})
+        html = (out / "stats.html").read_text()
+        self.assertIn("2,000", html)
+        self.assertIn("Where are they now?", html)
+        data = json.loads((out / "digests.json").read_text())
+        self.assertEqual([e["repo"] for e in data["entries"]], ["evil/x", "acme/agent"])
+        self.assertEqual(data["entries"][1]["latest_release"], "v1.2.3 (2026-11-01)")
+
+    def test_index_links_to_stats_and_data(self):
+        html = (self.out / "index.html").read_text()
+        self.assertIn("stats.html", html)
+        self.assertIn("digests.json", html)
+
+    def test_fetch_stars_tolerates_failures_and_stops_after_three(self):
+        calls = []
+
+        def boom(path):
+            calls.append(path)
+            raise OSError("offline")
+
+        with mock.patch.object(bs, "fetch_repo", boom):
+            got = bs.fetch_stars([{"repo": f"o/r{i}"} for i in range(10)])
+        self.assertEqual(got, {})
+        self.assertEqual(len(calls), 3)
+
+    def test_fetch_stars_collects_counts_and_skips_missing_repos(self):
+        def fake(path):
+            return None if path.endswith("gone") else {"stargazers_count": 42}
+
+        with mock.patch.object(bs, "fetch_repo", fake):
+            self.assertEqual(bs.fetch_stars([{"repo": "o/ok"}, {"repo": "o/gone"}]), {"o/ok": 42})
 
 
 class SummaryHtmlTests(unittest.TestCase):

@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Build a small static site (index.html + RSS feed.xml) from the digests.
+"""Build a small static site from the digests: index.html, stats.html, feed.xml, digests.json.
 
 Usage: build_site.py [OUT_DIR]      (default: site/)
 Optional environment: GITHUB_REPOSITORY (owner/name) and SITE_URL (public base URL).
 """
 from __future__ import annotations
 
+import json
 import os
 import sys
 from datetime import datetime, timezone
@@ -15,6 +16,8 @@ from pathlib import Path
 from xml.sax.saxutils import escape as xml_escape
 
 from digestlib import ROOT, entry_link, load_state, parse_date, parse_digest
+from fork_inventory import fetch as fetch_repo
+from stats import digests_json, render_stats_page
 
 DIGEST_DIR = ROOT / "digest"
 WEEKLY_DIR = DIGEST_DIR / "weekly"
@@ -80,7 +83,8 @@ def render_index(entries, weekly_files, site_url, repo_slug):
         f"<style>{CSS}</style></head><body><main>",
         "<h1>AI repo digest</h1>",
         "<p class='muted'>One popular, recently active AI repo per day. "
-        "<a href='feed.xml'>RSS feed</a></p>",
+        "<a href='feed.xml'>RSS feed</a> &middot; <a href='stats.html'>Stats</a> &middot; "
+        "<a href='digests.json'>Open data</a></p>",
     ]
     if weekly_files and repo_slug:
         links = " &middot; ".join(
@@ -132,7 +136,24 @@ def render_feed(entries, site_url, now):
     )
 
 
-def build(out_dir, state=None, now=None):
+def fetch_stars(entries, limit=100):
+    """Current star counts for the newest picks. A failed lookup just leaves that repo out."""
+    out, failures = {}, 0
+    for e in entries[:limit]:
+        try:
+            repo = fetch_repo(f"/repos/{e['repo']}")
+        except Exception as err:  # noqa: BLE001 - stats are a nicety, never break the build
+            failures += 1
+            print(f"stars lookup failed for {e['repo']}: {err}", file=sys.stderr)
+            if failures >= 3:
+                break
+            continue
+        if repo:
+            out[e["repo"]] = repo.get("stargazers_count")
+    return out
+
+
+def build(out_dir, state=None, now=None, stars_now=None):
     state = load_state() if state is None else state
     now = now or datetime.now(timezone.utc)
     entries = sorted(state, key=lambda e: e["date"], reverse=True)
@@ -145,13 +166,26 @@ def build(out_dir, state=None, now=None):
         encoding="utf-8",
     )
     (out / "feed.xml").write_text(render_feed(entries[:MAX_FEED_ENTRIES], site_url, now), encoding="utf-8")
+    infos = [info_for(e) for e in entries]
+    (out / "stats.html").write_text(
+        render_stats_page(
+            CSS, entries, infos, stars_now or {}, now.date(), now.strftime("%Y-%m-%d %H:%M UTC")
+        ),
+        encoding="utf-8",
+    )
+    (out / "digests.json").write_text(
+        json.dumps(digests_json(entries, infos, now.isoformat(timespec="seconds")), indent=2) + "\n",
+        encoding="utf-8",
+    )
     return out
 
 
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
-    out = build(argv[0] if argv else ROOT / "site")
-    print(f"built {out}/index.html and {out}/feed.xml")
+    state = load_state()
+    stars_now = fetch_stars(sorted(state, key=lambda e: e["date"], reverse=True))
+    out = build(argv[0] if argv else ROOT / "site", state=state, stars_now=stars_now)
+    print(f"built {out}: index.html, stats.html, feed.xml, digests.json")
     return 0
 
 

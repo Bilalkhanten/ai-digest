@@ -11,6 +11,7 @@ variables override them. Environment variables:
 from __future__ import annotations
 
 import json
+import math
 import os
 import random
 import re
@@ -19,7 +20,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from digestlib import ask_claude, entry_link, parse_date
@@ -42,6 +43,9 @@ DEFAULT_CONFIG = {
     "max_age_days": 30,
     "fork_every_days": 1,          # 1 = fork daily, 7 = weekly, 0 = never (digest only)
     "min_readme_chars": 500,       # skip repos with a stub README
+    "owner_cooldown_days": 21,     # avoid picking the same owner again within this many days
+    "release_bonus_days": 30,      # a release this recent moves a candidate up the queue
+    "release_check_top": 6,        # only the first N candidates are checked for releases
     "exclude_repos": [],           # "owner/name"
     "exclude_owners": [],
     "exclude_name_patterns": ["^awesome", "interview", "roadmap"],   # regexes on the repo name
@@ -133,17 +137,58 @@ def is_excluded(repo):
     return repo.get("size") == 0  # empty repositories
 
 
-def weighted_order(pool):
-    """Random order biased towards more popular repos (weighted sampling, no repeats)."""
+def _day(timestamp):
+    """A date from an ISO timestamp, or None."""
+    try:
+        return date.fromisoformat(timestamp[:10])
+    except (TypeError, ValueError):
+        return None
+
+
+def _ago(days):
+    return "today" if days == 0 else "1 day ago" if days == 1 else f"{days} days ago"
+
+
+def momentum(repo, today):
+    """Cheap signals from the search result: stars, lifetime stars/day, days since last push."""
+    stars = max(repo.get("stargazers_count", 1), 1)
+    created, pushed = _day(repo.get("created_at")), _day(repo.get("pushed_at"))
+    velocity = stars / max((today - created).days, 30) if created else 0.0
+    pushed_days = max((today - pushed).days, 0) if pushed else None
+    return {"stars": stars, "velocity": velocity, "pushed_days": pushed_days}
+
+
+def base_score(repo, today):
+    """Higher = more interesting right now: popular, growing fast, recently pushed."""
+    m = momentum(repo, today)
+    score = math.log10(m["stars"])
+    score += min(math.log10(1 + m["velocity"]), 2.0)
+    if m["pushed_days"] is not None:
+        score += 0.5 * max(0.0, 1 - m["pushed_days"] / max(MAX_AGE_DAYS, 1))
+    return score
+
+
+def weighted_order(pool, today=None):
+    """Random order biased towards higher-scoring repos (weighted sampling, no repeats)."""
+    today = today or datetime.now(timezone.utc).date()
+
     def key(r):
-        weight = max(r.get("stargazers_count", 1), 1) ** 0.5
+        weight = max(base_score(r, today), 0.1) ** 2
         return random.random() ** (1.0 / weight)
 
     return sorted(pool, key=key, reverse=True)
 
 
-def find_candidates(forked, me_login):
-    """Return (topic, ordered candidate repos) for the first topic with any eligible repo."""
+def recent_owners(state, today, days):
+    """Lower-cased owners picked within the last `days` days."""
+    cutoff = today - timedelta(days=days)
+    return {e["repo"].split("/")[0].lower() for e in state if parse_date(e["date"]) > cutoff}
+
+
+def find_candidates(forked, me_login, cooldown_owners=frozenset()):
+    """Return (topic, ordered candidate repos) for the first topic with any eligible repo.
+
+    Owners in `cooldown_owners` are avoided, but only if that leaves something to pick."""
     now = datetime.now(timezone.utc)
     since = (now - timedelta(days=MAX_AGE_DAYS)).strftime("%Y-%m-%d")
     start = now.timetuple().tm_yday
@@ -154,14 +199,15 @@ def find_candidates(forked, me_login):
             {"q": q, "sort": "updated", "order": "desc", "per_page": 100}
         )
         items = json.loads(gh("GET", f"/search/repositories?{qs}"))["items"]
-        pool = [
+        eligible = [
             r for r in items
             if r["full_name"] not in forked
             and r["owner"]["login"].lower() != me_login.lower()
             and not is_excluded(r)
         ]
+        pool = [r for r in eligible if r["owner"]["login"].lower() not in cooldown_owners] or eligible
         if pool:
-            return topic, weighted_order(pool)
+            return topic, weighted_order(pool, now.date())
     return None, []
 
 
@@ -187,6 +233,48 @@ def fetch_release(repo):
         return json.loads(gh("GET", f"/repos/{repo['full_name']}/releases/latest"))
     except (ApiError, ValueError):
         return None
+
+
+_RELEASES = {}
+
+
+def release_for(repo):
+    """Latest release for a repo, looked up at most once per run."""
+    name = repo["full_name"]
+    if name not in _RELEASES:
+        _RELEASES[name] = fetch_release(repo)
+    return _RELEASES[name]
+
+
+def release_age_days(release, today):
+    published = _day((release or {}).get("published_at"))
+    return (today - published).days if published else None
+
+
+def prefer_recent_release(pool, today):
+    """Among the first few candidates, move those with a recent release to the front.
+
+    The relative (random) order inside each group is kept, so picks stay varied."""
+    top = pool[: CONFIG["release_check_top"]]
+    flags = []
+    for r in top:
+        age = release_age_days(release_for(r), today)
+        flags.append((age is not None and age <= CONFIG["release_bonus_days"], r))
+    return [r for ok, r in flags if ok] + [r for ok, r in flags if not ok] + pool[len(top):]
+
+
+def reason_text(repo, today, release):
+    """One line explaining the pick, e.g. '1,772 stars, ~2.4 stars/day, pushed today'."""
+    m = momentum(repo, today)
+    parts = [f"{m['stars']:,} stars"]
+    if m["velocity"] >= 1:
+        parts.append(f"~{m['velocity']:.1f} stars/day since creation")
+    if m["pushed_days"] is not None:
+        parts.append(f"pushed {_ago(m['pushed_days'])}")
+    age = release_age_days(release, today)
+    if age is not None:
+        parts.append(f"release {_ago(age)}")
+    return ", ".join(parts)
 
 
 def choose_repo(pool):
@@ -240,6 +328,8 @@ def render_digest(today, topic, repo, summary, extras=None):
         f"- Last push: {repo['pushed_at']}",
         f"- Topics: {topics}",
     ]
+    if extras.get("reason"):
+        lines.append(f"- Why picked: {extras['reason']}")
     if extras.get("age"):
         lines.append(f"- Created: {repo['created_at'][:10]} ({extras['age']})")
     if "forks_count" in repo and "open_issues_count" in repo:
@@ -291,6 +381,7 @@ def write_summary(text):
 
 
 def main():
+    _RELEASES.clear()
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     digest_path = DIGEST_DIR / f"{today}.md"
     if digest_path.exists():
@@ -305,8 +396,10 @@ def main():
     if TOKEN:
         me = json.loads(gh("GET", "/user"))
 
-    topic, pool = find_candidates(forked, me["login"])
-    repo, readme = choose_repo(pool)
+    today_d = parse_date(today)
+    cooldown = recent_owners(state, today_d, CONFIG["owner_cooldown_days"])
+    topic, pool = find_candidates(forked, me["login"], cooldown)
+    repo, readme = choose_repo(prefer_recent_release(pool, today_d))
     if not repo:
         print("No candidate found; try lowering MIN_STARS / min_readme_chars or raising MAX_AGE_DAYS.")
         write_summary(
@@ -317,7 +410,9 @@ def main():
     print(f"Picked {repo['full_name']} ({repo['stargazers_count']:,} stars, topic: {topic})")
 
     do_fork = should_fork(state, today)
-    extras = build_extras(repo, readme, parse_date(today), fetch_release(repo))
+    release = release_for(repo)
+    extras = build_extras(repo, readme, today_d, release)
+    extras["reason"] = reason_text(repo, today_d, release)
     page = render_digest(today, topic, repo, claude_summary(repo, readme), extras)
 
     if DRY_RUN:
