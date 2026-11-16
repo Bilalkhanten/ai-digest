@@ -1,0 +1,46 @@
+name: Daily AI repo fork
+
+on:
+  schedule:
+    - cron: "17 7 * * *"   # 07:17 UTC daily (GitHub may delay scheduled runs)
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Pick a repo and print it, but don't fork or commit"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-fork
+  cancel-in-progress: false
+
+jobs:
+  fork:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pick, fork and write digest
+        id: run
+        env:
+          GH_TOKEN: ${{ secrets.FORK_PAT }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
+        run: python3 scripts/daily_fork.py
+
+      - name: Commit digest
+        if: steps.run.outputs.picked != ''
+        env:
+          PICKED: ${{ steps.run.outputs.picked }}
+          COMMIT_NAME: ${{ steps.run.outputs.commit_name }}
+          COMMIT_EMAIL: ${{ steps.run.outputs.commit_email }}
+        run: |
+          git config user.name "$COMMIT_NAME"
+          git config user.email "$COMMIT_EMAIL"
+          git add digest forked.json INDEX.md
+          git commit -m "digest: $PICKED"
+          git push
