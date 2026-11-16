@@ -34,9 +34,10 @@ LONG_README = "# Project\n" + "A useful description of the project. " * 30
 class FakeGitHub:
     """Routes df.gh() calls to canned responses and records writes."""
 
-    def __init__(self, items, readmes=None):
+    def __init__(self, items, readmes=None, releases=None):
         self.items = items
         self.readmes = readmes or {}
+        self.releases = releases or {}
         self.calls = []
 
     def __call__(self, method, path, data=None, accept=None):
@@ -47,6 +48,11 @@ class FakeGitHub:
             return json.dumps({"items": self.items})
         if path.endswith("/readme"):
             return self.readmes.get(path.split("/repos/")[1].rsplit("/readme", 1)[0], LONG_README)
+        if path.endswith("/releases/latest"):
+            name = path.split("/repos/")[1].rsplit("/releases/latest", 1)[0]
+            if name not in self.releases:
+                raise df.ApiError("GET release -> HTTP 404")
+            return json.dumps(self.releases[name])
         if method == "POST" and path.endswith("/forks"):
             name = path.split("/repos/")[1].rsplit("/forks", 1)[0]
             return json.dumps({"html_url": f"https://github.com/me/{name.split('/')[1]}"})
@@ -135,6 +141,22 @@ class MainTests(unittest.TestCase):
         self.assertIn("fork_url=https://github.com/me/agent", outputs)
         self.assertIn("commit_email=42+me@users.noreply.github.com", outputs)
         self.assertIn("Digest for `acme/agent`", self.summary.read_text())
+
+    def test_real_run_page_includes_release_and_readme_facts(self):
+        fake = FakeGitHub(
+            [make_repo("acme/agent", stars=900)],
+            readmes={"acme/agent": "# Agent\n\nAcme Agent is a framework for building reliable tool using "
+                     "agents with typed plans and good tracing support.\n\n## Quickstart\n\n```\n"
+                     "pip install acme-agent\n```\n" + "More text here. " * 40},
+            releases={"acme/agent": {"tag_name": "v3.1.0", "published_at": "2026-11-10T00:00:00Z"}},
+        )
+        with mock.patch.object(df, "gh", fake):
+            df.main()
+        page = next((self.root / "digest").glob("*.md")).read_text()
+        self.assertIn("Latest release: v3.1.0 (2026-11-10)", page)
+        self.assertIn("Install: `pip install acme-agent`", page)
+        self.assertIn("README sections: Quickstart", page)
+        self.assertIn("README excerpt: Acme Agent is a framework", page)
 
     def test_second_run_same_day_is_a_noop(self):
         fake = FakeGitHub([make_repo("acme/agent")])
@@ -274,6 +296,51 @@ class ForkCadenceTests(unittest.TestCase):
         index = df.render_index(st)
         self.assertIn("(https://github.com/o/r0)", index)
         self.assertIn("| no |", index)
+
+
+class AtAGlanceTests(unittest.TestCase):
+    EXTRAS = {
+        "excerpt": "A framework for building agents.", "sections": ["Quickstart", "Usage"],
+        "install": "pip install acme-agent", "release": "v1.2.3 (2026-11-01)", "age": "20 months ago",
+    }
+
+    def repo(self):
+        return {**make_repo(), "created_at": "2025-03-01T00:00:00Z", "forks_count": 1234, "open_issues_count": 56}
+
+    def test_section_and_facts_are_rendered(self):
+        page = df.render_digest("2026-11-16", "llm", self.repo(), "", self.EXTRAS)
+        for expected in (
+            "## At a glance", "README excerpt: A framework for building agents.",
+            "Install: `pip install acme-agent`", "README sections: Quickstart, Usage",
+            "- Created: 2025-03-01 (20 months ago)", "- Forks: 1,234 | Open issues: 56",
+            "- Latest release: v1.2.3 (2026-11-01)",
+        ):
+            self.assertIn(expected, page)
+
+    def test_no_extras_renders_exactly_like_before(self):
+        page = df.render_digest("2026-11-16", "llm", make_repo(), "")
+        self.assertNotIn("At a glance", page)
+        self.assertNotIn("Created:", page)
+
+    def test_glance_comes_before_the_claude_summary(self):
+        page = df.render_digest("2026-11-16", "llm", self.repo(), "- a\n- b", self.EXTRAS)
+        self.assertLess(page.index("## At a glance"), page.index("## Summary"))
+
+    def test_page_round_trips_through_the_parser(self):
+        import digestlib
+        info = digestlib.parse_digest(df.render_digest("2026-11-16", "llm", self.repo(), "- a", self.EXTRAS))
+        self.assertEqual(info["excerpt"], "A framework for building agents.")
+        self.assertEqual(info["install"], "pip install acme-agent")
+        self.assertEqual(info["release"], "v1.2.3 (2026-11-01)")
+        self.assertEqual(info["language"], "Python")
+        self.assertEqual(info["summary"], "- a")
+
+    def test_release_lookup_failure_is_not_fatal(self):
+        with mock.patch.object(df, "gh", FakeGitHub([])):
+            self.assertIsNone(df.fetch_release(make_repo("a/none")))
+        fake = FakeGitHub([], releases={"a/rel": {"tag_name": "v2", "published_at": "2026-01-02T00:00:00Z"}})
+        with mock.patch.object(df, "gh", fake):
+            self.assertEqual(df.fetch_release(make_repo("a/rel"))["tag_name"], "v2")
 
 
 class ConfigTests(unittest.TestCase):

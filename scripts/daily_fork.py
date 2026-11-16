@@ -23,6 +23,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from digestlib import ask_claude, entry_link, parse_date
+from glance import build_extras
 
 API = "https://api.github.com"
 ROOT = Path(__file__).resolve().parent.parent
@@ -180,6 +181,14 @@ def fetch_readme(repo):
         return ""
 
 
+def fetch_release(repo):
+    """Latest published release object, or None (no releases, or any API error)."""
+    try:
+        return json.loads(gh("GET", f"/repos/{repo['full_name']}/releases/latest"))
+    except (ApiError, ValueError):
+        return None
+
+
 def choose_repo(pool):
     """First candidate with a real README. Returns (repo, readme) or (None, '')."""
     for repo in pool[:MAX_README_TRIES]:
@@ -214,7 +223,8 @@ def claude_summary(repo, readme):
     return ask_claude(prompt, ANTHROPIC_KEY, CLAUDE_MODEL, max_tokens=400)
 
 
-def render_digest(today, topic, repo, summary):
+def render_digest(today, topic, repo, summary, extras=None):
+    extras = extras or {}
     topics = ", ".join(repo.get("topics") or []) or "n/a"
     license_name = (repo.get("license") or {}).get("spdx_id") or "n/a"
     lines = [
@@ -230,6 +240,23 @@ def render_digest(today, topic, repo, summary):
         f"- Last push: {repo['pushed_at']}",
         f"- Topics: {topics}",
     ]
+    if extras.get("age"):
+        lines.append(f"- Created: {repo['created_at'][:10]} ({extras['age']})")
+    if "forks_count" in repo and "open_issues_count" in repo:
+        lines.append(f"- Forks: {repo['forks_count']:,} | Open issues: {repo['open_issues_count']:,}")
+    if extras.get("release"):
+        lines.append(f"- Latest release: {extras['release']}")
+    glance = []
+    if extras.get("excerpt"):
+        glance.append(f"README excerpt: {extras['excerpt']}")
+    if extras.get("install"):
+        glance.append(f"Install: `{extras['install']}`")
+    if extras.get("sections"):
+        glance.append("README sections: " + ", ".join(extras["sections"]))
+    if glance:
+        lines += ["", "## At a glance", ""]
+        for i, block in enumerate(glance):
+            lines += ([""] if i else []) + [block]
     if summary:
         lines += ["", "## Summary", "", summary]
     return "\n".join(lines) + "\n"
@@ -290,7 +317,8 @@ def main():
     print(f"Picked {repo['full_name']} ({repo['stargazers_count']:,} stars, topic: {topic})")
 
     do_fork = should_fork(state, today)
-    page = render_digest(today, topic, repo, claude_summary(repo, readme))
+    extras = build_extras(repo, readme, parse_date(today), fetch_release(repo))
+    page = render_digest(today, topic, repo, claude_summary(repo, readme), extras)
 
     if DRY_RUN:
         action = "fork" if do_fork else "write a digest only (no fork today)"

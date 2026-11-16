@@ -27,12 +27,23 @@ def parse_date(value):
 
 def parse_digest(text):
     """Pull the fields we need back out of a rendered digest page."""
-    info = {"description": "", "language": "n/a", "license": "n/a", "summary": ""}
+    info = {
+        "description": "", "language": "n/a", "license": "n/a", "summary": "",
+        "excerpt": "", "install": "", "release": "",
+    }
     m = re.search(r"^> (.+)$", text, re.M)
     if m:
         info["description"] = m.group(1).strip()
     for key, label in (("language", "Language"), ("license", "License")):
         m = re.search(rf"^- {label}: (.+)$", text, re.M)
+        if m:
+            info[key] = m.group(1).strip()
+    for key, pattern in (
+        ("excerpt", r"^README excerpt: (.+)$"),
+        ("install", r"^Install: `(.+)`$"),
+        ("release", r"^- Latest release: (.+)$"),
+    ):
+        m = re.search(pattern, text, re.M)
         if m:
             info[key] = m.group(1).strip()
     m = re.search(r"^## Summary\s*\n(.*)\Z", text, re.M | re.S)

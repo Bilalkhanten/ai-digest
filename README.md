@@ -67,6 +67,15 @@ The API client retries transient errors (429, 5xx, network) up to 3 times.
 - Revoke the token if you stop using this. To renew it, regenerate it and update the
   `FORK_PAT` secret; the Token health workflow warns you 14 days ahead.
 
+## What each digest page contains
+
+Every page is built from the repo's own data, with no API key and no cost: name, description,
+stars, language, license, last push, topics, age, forks, open issues and the latest release,
+plus an **At a glance** section with a short README excerpt, the first install command found
+in the README, and the README's main sections. Badges, HTML, links and `@` mentions are
+stripped from the excerpt. If you add `ANTHROPIC_API_KEY`, a Claude-written 3-bullet summary
+is added on top; that part is optional.
+
 ## Configuration
 
 Settings live in `config.json`; environment variables (`MIN_STARS`, `MAX_AGE_DAYS`,

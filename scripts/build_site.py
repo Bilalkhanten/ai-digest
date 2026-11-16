@@ -46,6 +46,21 @@ def summary_html(summary):
     return f"<p>{escape(summary)}</p>" if summary else ""
 
 
+def glance_html(info):
+    """The free 'At a glance' facts, all HTML-escaped."""
+    parts = []
+    if info["excerpt"]:
+        parts.append(f"<p class='muted'>{escape(info['excerpt'])}</p>")
+    extras = []
+    if info["install"]:
+        extras.append(f"Install: <code>{escape(info['install'])}</code>")
+    if info["release"]:
+        extras.append(f"Latest release: {escape(info['release'])}")
+    if extras:
+        parts.append("<p class='muted'>" + " &middot; ".join(extras) + "</p>")
+    return "".join(parts)
+
+
 def default_site_url():
     if os.getenv("SITE_URL"):
         return os.environ["SITE_URL"].rstrip("/") + "/"
@@ -81,7 +96,7 @@ def render_index(entries, weekly_files, site_url, repo_slug):
             f"<article><h2><a href='https://github.com/{escape(e['repo'])}'>{escape(e['repo'])}</a></h2>"
             f"<div class='muted'>{escape(e['date'])} &middot; {e['stars']:,} stars &middot; "
             f"{escape(e['topic'])} &middot; {escape(info['language'])}{fork}</div>"
-            f"<p>{escape(info['description'])}</p>{summary_html(info['summary'])}</article>"
+            f"<p>{escape(info['description'])}</p>{glance_html(info)}{summary_html(info['summary'])}</article>"
         )
     parts.append("</main></body></html>")
     return "\n".join(parts)
@@ -93,7 +108,10 @@ def render_feed(entries, site_url, now):
         info = info_for(e)
         day = parse_date(e["date"])
         published = datetime(day.year, day.month, day.day, 7, tzinfo=timezone.utc)
-        body = info["description"] + ("\n\n" + info["summary"] if info["summary"] else "")
+        body = info["description"]
+        for extra in (info["excerpt"], info["summary"]):
+            if extra:
+                body += "\n\n" + extra
         items.append(
             "<item>"
             f"<title>{xml_escape(e['repo'])}</title>"

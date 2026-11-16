@@ -14,7 +14,11 @@ STATE = [
     {"date": "2026-11-16", "repo": "acme/agent", "stars": 1234, "topic": "llm", "fork_url": "https://github.com/me/agent"},
     {"date": "2026-11-17", "repo": "evil/x", "stars": 5, "topic": "rag", "fork_url": None},
 ]
-GOOD = "# acme/agent\n\n> An agent framework.\n\n- Language: Python\n\n## Summary\n\n- One\n- Two\n"
+GOOD = (
+    "# acme/agent\n\n> An agent framework.\n\n- Language: Python\n- Latest release: v1.2.3 (2026-11-01)\n\n"
+    "## At a glance\n\nREADME excerpt: Builds <agents> & more.\n\nInstall: `pip install acme-agent`\n\n"
+    "## Summary\n\n- One\n- Two\n"
+)
 EVIL = "# evil/x\n\n> <script>alert(1)</script> & more\n\n- Language: <b>Rust</b>\n\n## Summary\n\n- <img src=x onerror=alert(1)>\n"
 
 
@@ -48,6 +52,12 @@ class BuildSiteTests(unittest.TestCase):
         self.assertIn("<li>One</li>", html)
         self.assertIn("2026-W47", html)            # weekly link
         self.assertIn("1,234 stars", html)
+
+    def test_glance_facts_are_shown_and_escaped(self):
+        html = (self.out / "index.html").read_text()
+        self.assertIn("<code>pip install acme-agent</code>", html)
+        self.assertIn("Latest release: v1.2.3 (2026-11-01)", html)
+        self.assertIn("Builds &lt;agents&gt; &amp; more.", html)
 
     def test_untrusted_repo_text_is_escaped(self):
         html = (self.out / "index.html").read_text()
