@@ -28,11 +28,15 @@ def make_repo(name="acme/agent", stars=500, owner=None):
     }
 
 
+LONG_README = "# Project\n" + "A useful description of the project. " * 30
+
+
 class FakeGitHub:
     """Routes df.gh() calls to canned responses and records writes."""
 
-    def __init__(self, items):
+    def __init__(self, items, readmes=None):
         self.items = items
+        self.readmes = readmes or {}
         self.calls = []
 
     def __call__(self, method, path, data=None, accept=None):
@@ -42,7 +46,7 @@ class FakeGitHub:
         if path.startswith("/search/repositories"):
             return json.dumps({"items": self.items})
         if path.endswith("/readme"):
-            return "# readme"
+            return self.readmes.get(path.split("/repos/")[1].rsplit("/readme", 1)[0], LONG_README)
         if method == "POST" and path.endswith("/forks"):
             name = path.split("/repos/")[1].rsplit("/forks", 1)[0]
             return json.dumps({"html_url": f"https://github.com/me/{name.split('/')[1]}"})
@@ -130,7 +134,7 @@ class MainTests(unittest.TestCase):
         self.assertIn("picked=acme/agent", outputs)
         self.assertIn("fork_url=https://github.com/me/agent", outputs)
         self.assertIn("commit_email=42+me@users.noreply.github.com", outputs)
-        self.assertIn("Forked `acme/agent`", self.summary.read_text())
+        self.assertIn("Digest for `acme/agent`", self.summary.read_text())
 
     def test_second_run_same_day_is_a_noop(self):
         fake = FakeGitHub([make_repo("acme/agent")])
@@ -161,10 +165,137 @@ class MainTests(unittest.TestCase):
         self.assertFalse((self.root / "forked.json").exists())
         self.assertFalse((self.root / "digest").exists())
 
+    def test_digest_only_day_writes_files_but_does_not_fork(self):
+        fake = FakeGitHub([make_repo("acme/agent")])
+        with mock.patch.object(df, "gh", fake), mock.patch.object(df, "FORK_EVERY_DAYS", 0):
+            self.assertEqual(df.main(), 0)
+        self.assertFalse(any(m == "POST" for m, _ in fake.calls))
+        state = json.loads((self.root / "forked.json").read_text())
+        self.assertIsNone(state[0]["fork_url"])
+        self.assertIn("fork_url=\n", self.out.read_text())
+        self.assertIn("digest only", self.summary.read_text())
+
+    def test_stub_readme_everywhere_means_no_candidate_and_no_files(self):
+        fake = FakeGitHub([make_repo("acme/agent")], readmes={"acme/agent": "# tiny"})
+        with mock.patch.object(df, "gh", fake):
+            self.assertEqual(df.main(), 0)
+        self.assertFalse((self.root / "forked.json").exists())
+        self.assertIn("No candidate", self.summary.read_text())
+
     def test_missing_token_without_dry_run_exits(self):
         with mock.patch.object(df, "gh", FakeGitHub([make_repo()])), mock.patch.object(df, "TOKEN", ""):
             with self.assertRaises(SystemExit):
                 df.main()
+
+
+class ExclusionTests(unittest.TestCase):
+    def cfg(self, **overrides):
+        return mock.patch.object(df, "CONFIG", {**df.DEFAULT_CONFIG, **overrides})
+
+    def test_name_pattern_and_description_keyword(self):
+        awesome = make_repo("a/awesome-llm")
+        listy = {**make_repo("a/other"), "description": "A Curated List of things"}
+        with self.cfg():
+            self.assertTrue(df.is_excluded(awesome))
+            self.assertTrue(df.is_excluded(listy))
+            self.assertFalse(df.is_excluded(make_repo("a/agent")))
+
+    def test_explicit_repo_and_owner_lists_are_case_insensitive(self):
+        with self.cfg(exclude_repos=["Acme/Agent"], exclude_owners=["Spammer"]):
+            self.assertTrue(df.is_excluded(make_repo("acme/agent")))
+            self.assertTrue(df.is_excluded(make_repo("spammer/x")))
+            self.assertFalse(df.is_excluded(make_repo("fine/x")))
+
+    def test_empty_repo_is_excluded(self):
+        with self.cfg():
+            self.assertTrue(df.is_excluded({**make_repo(), "size": 0}))
+
+    def test_excluded_repos_never_reach_the_candidate_pool(self):
+        items = [make_repo("a/awesome-x"), make_repo("b/real")]
+        with mock.patch.object(df, "gh", FakeGitHub(items)), \
+                mock.patch.object(df, "CONFIG", {**df.DEFAULT_CONFIG}):
+            _, pool = df.find_candidates(set(), "me")
+        self.assertEqual([r["full_name"] for r in pool], ["b/real"])
+
+
+class ChooseRepoTests(unittest.TestCase):
+    def test_skips_stub_readmes_and_takes_the_next_candidate(self):
+        pool = [make_repo("a/stub"), make_repo("b/good")]
+        fake = FakeGitHub([], readmes={"a/stub": "# tiny"})
+        with mock.patch.object(df, "gh", fake):
+            repo, readme = df.choose_repo(pool)
+        self.assertEqual(repo["full_name"], "b/good")
+        self.assertGreaterEqual(len(readme), 500)
+
+    def test_returns_none_when_all_readmes_are_stubs(self):
+        pool = [make_repo("a/stub")]
+        with mock.patch.object(df, "gh", FakeGitHub([], readmes={"a/stub": ""})):
+            self.assertEqual(df.choose_repo(pool), (None, ""))
+
+    def test_weighted_order_returns_every_repo_exactly_once(self):
+        pool = [make_repo(f"o/r{i}", stars=100 * (i + 1)) for i in range(6)]
+        ordered = df.weighted_order(pool)
+        self.assertEqual(sorted(r["full_name"] for r in ordered), sorted(r["full_name"] for r in pool))
+
+    def test_weighted_order_prefers_popular_repos(self):
+        pool = [make_repo("o/small", stars=100), make_repo("o/big", stars=1_000_000)]
+        wins = sum(df.weighted_order(pool)[0]["full_name"] == "o/big" for _ in range(300))
+        self.assertGreater(wins, 200)
+
+
+class ForkCadenceTests(unittest.TestCase):
+    def state(self, *pairs):
+        return [{"date": d, "repo": f"o/r{i}", "stars": 1, "topic": "llm", "fork_url": u}
+                for i, (d, u) in enumerate(pairs)]
+
+    def test_daily_default_forks_every_day(self):
+        with mock.patch.object(df, "FORK_EVERY_DAYS", 1):
+            self.assertTrue(df.should_fork(self.state(("2026-11-15", "u")), "2026-11-16"))
+
+    def test_weekly_cadence_waits_for_the_gap(self):
+        with mock.patch.object(df, "FORK_EVERY_DAYS", 7):
+            st = self.state(("2026-11-10", "u"))
+            self.assertFalse(df.should_fork(st, "2026-11-16"))
+            self.assertTrue(df.should_fork(st, "2026-11-17"))
+
+    def test_digest_only_days_do_not_reset_the_clock(self):
+        with mock.patch.object(df, "FORK_EVERY_DAYS", 7):
+            st = self.state(("2026-11-10", "u"), ("2026-11-14", None))
+            self.assertTrue(df.should_fork(st, "2026-11-17"))
+
+    def test_zero_means_never_and_first_run_always_forks(self):
+        with mock.patch.object(df, "FORK_EVERY_DAYS", 0):
+            self.assertFalse(df.should_fork([], "2026-11-16"))
+        with mock.patch.object(df, "FORK_EVERY_DAYS", 7):
+            self.assertTrue(df.should_fork([], "2026-11-16"))
+
+    def test_index_links_original_when_there_is_no_fork(self):
+        st = self.state(("2026-11-16", None))
+        index = df.render_index(st)
+        self.assertIn("(https://github.com/o/r0)", index)
+        self.assertIn("| no |", index)
+
+
+class ConfigTests(unittest.TestCase):
+    def test_missing_file_uses_defaults_and_file_overrides_keys(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "config.json"
+            self.assertEqual(df.load_config(path)["min_stars"], df.DEFAULT_CONFIG["min_stars"])
+            path.write_text('{"min_stars": 7}')
+            cfg = df.load_config(path)
+            self.assertEqual(cfg["min_stars"], 7)
+            self.assertEqual(cfg["topics"], df.DEFAULT_CONFIG["topics"])
+
+    def test_invalid_json_exits_with_a_clear_message(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "config.json"
+            path.write_text("{nope")
+            with self.assertRaises(SystemExit):
+                df.load_config(path)
+
+    def test_shipped_config_is_valid_and_complete(self):
+        cfg = df.load_config(Path(__file__).resolve().parent.parent / "config.json")
+        self.assertEqual(set(cfg), set(df.DEFAULT_CONFIG))
 
 
 def http_error(code, headers=None):

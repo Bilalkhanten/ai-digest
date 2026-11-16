@@ -1,0 +1,36 @@
+name: Fork inventory
+
+on:
+  schedule:
+    - cron: "11 8 1 * *"   # 1st of each month, 08:11 UTC
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  report:
+    name: List the forks this tool made
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      # Read-only: this only inspects public repos and writes a report. It never deletes.
+      - name: Build the report
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/fork_inventory.py report.md
+
+      - name: Post it to the inventory issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          body="@$OWNER your monthly fork inventory is ready. Review the candidates and delete any forks you no longer want.
+
+          $(cat report.md)"
+          ./scripts/alert_issue.sh open "Monthly fork inventory" "$body"

@@ -1,0 +1,46 @@
+name: Watchdog
+
+on:
+  schedule:
+    - cron: "7 12 * * *"   # daily 12:07 UTC, hours after the 07:17 digest run
+  workflow_dispatch:
+
+permissions: {}
+
+env:
+  ALERT_TITLE: "Daily digest is overdue"
+
+jobs:
+  check:
+    name: Check the digest is arriving
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Check the newest digest date
+        env:
+          OVERDUE_DAYS: "2"
+        run: python3 scripts/watchdog.py
+
+      - name: Open or update issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          ./scripts/alert_issue.sh open "$ALERT_TITLE" "@$OWNER No new digest for 2+ days: $RUN_URL"
+
+      - name: Close issue if digests are flowing again
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          ./scripts/alert_issue.sh close "$ALERT_TITLE" "Resolved: digests are arriving again ($RUN_URL)."

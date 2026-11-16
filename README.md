@@ -15,7 +15,11 @@ toward your contribution graph. See [INDEX.md](INDEX.md) for the log.
 | **CI** (`ci.yml`) | every push, PRs to `main` | offline tests on Python 3.10 to 3.13, `ruff`, `shellcheck`, `actionlint` |
 | **Daily AI repo fork** (`daily-fork.yml`) | 07:17 UTC daily, manual | `verify` (tests) gates `fork` (pick, fork, commit digest). On failure it opens one issue; the next success closes it |
 | **Token health** (`token-health.yml`) | Mondays 06:43 UTC, manual | checks `FORK_PAT` is valid, has only `public_repo`, and is not within 14 days of expiry; opens an issue if not |
-| **Dependabot** | monthly | keeps the GitHub Actions versions current |
+| **Weekly roll-up** (`weekly-rollup.yml`) | Sundays 18:23 UTC, manual | writes `digest/weekly/YYYY-Www.md` (repos, topic and language counts, optional Claude themes) and commits it |
+| **Watchdog** (`watchdog.yml`) | daily 12:07 UTC, manual | opens an issue if the newest digest is 2+ days old (a skipped or failing schedule) |
+| **Fork inventory** (`fork-inventory.yml`) | 1st of the month, manual | posts a read-only report of the forks this tool made, with candidates to prune. It never deletes anything |
+| **Publish site** (job in `daily-fork.yml`) | after each real run, if enabled | builds a small website and RSS feed from the digests. Off by default, see below |
+| **Dependabot** | monthly | keeps the GitHub Actions versions current. Actions are pinned to commit SHAs |
 
 After a real run pushes a digest commit, the `notify` job @mentions you on a single
 running issue, "Daily digest log". GitHub emails you for that mention (and pushes to the
@@ -62,6 +66,43 @@ The API client retries transient errors (429, 5xx, network) up to 3 times.
   raise the frequency; GitHub's acceptable-use rules target bulk automated activity.
 - Revoke the token if you stop using this. To renew it, regenerate it and update the
   `FORK_PAT` secret; the Token health workflow warns you 14 days ahead.
+
+## Configuration
+
+Settings live in `config.json`; environment variables (`MIN_STARS`, `MAX_AGE_DAYS`,
+`FORK_EVERY_DAYS`) override them. All keys are optional.
+
+| Key | Default | Meaning |
+|---|---|---|
+| `topics` | 10 AI topics | rotated by day of year |
+| `min_stars` / `max_age_days` | 100 / 30 | popularity floor, and how recently the repo was pushed |
+| `fork_every_days` | 1 | `1` daily, `7` weekly, `0` never (digest only) |
+| `min_readme_chars` | 500 | skip repos with a stub README |
+| `exclude_repos`, `exclude_owners` | empty | never pick these (`owner/name`, owner login) |
+| `exclude_name_patterns` | `^awesome`, `interview`, `roadmap` | regexes matched against the repo name |
+| `exclude_description_keywords` | curated list, awesome list, ... | skip if the description contains any |
+
+Candidates are picked at random, weighted towards more popular repos. If a digest-only
+day happens (`fork_every_days` above 1), the digest and its commit are still written;
+only the fork is skipped.
+
+## Website and RSS feed (optional)
+
+The digest can be published as a small site with an RSS feed. It is off until you enable it:
+
+1. Repo Settings > Pages > Build and deployment > Source: **GitHub Actions**.
+2. Repo Settings > Secrets and variables > Actions > Variables > New repository variable:
+   `ENABLE_PAGES` = `true`.
+
+After the next real run the site appears at `https://<your-login>.github.io/ai-digest/`,
+with the feed at `.../feed.xml`. Preview locally with `python3 scripts/build_site.py site`.
+
+## Protect main (optional)
+
+`.github/rulesets/protect-main.json` blocks force-pushes and deletion of `main`. It does not
+require pull requests or checks, so the daily commit still works. To apply it: repo
+Settings > Rules > Rulesets > New ruleset > Import a ruleset, then choose that file.
+If you ever need to rewrite history, disable the ruleset first.
 
 ## Develop
 

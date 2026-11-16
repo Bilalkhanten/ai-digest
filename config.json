@@ -1,0 +1,14 @@
+{
+  "topics": [
+    "llm", "ai-agents", "rag", "machine-learning", "generative-ai",
+    "deep-learning", "mcp", "nlp", "computer-vision", "langchain"
+  ],
+  "min_stars": 100,
+  "max_age_days": 30,
+  "fork_every_days": 1,
+  "min_readme_chars": 500,
+  "exclude_repos": [],
+  "exclude_owners": [],
+  "exclude_name_patterns": ["^awesome", "interview", "roadmap"],
+  "exclude_description_keywords": ["curated list", "awesome list", "interview questions", "roadmap"]
+}
