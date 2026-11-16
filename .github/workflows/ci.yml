@@ -59,6 +59,15 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: python3 scripts/check_authors.py
 
+  data:
+    name: Data check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Validate forked.json, digest pages, index and README block
+        run: python3 scripts/data_check.py
+
   workflows:
     name: Lint workflow files (actionlint)
     runs-on: ubuntu-latest

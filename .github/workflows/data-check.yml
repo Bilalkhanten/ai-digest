@@ -1,0 +1,48 @@
+name: Data check
+
+on:
+  schedule:
+    - cron: "41 3 * * *"   # daily 03:41 UTC
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: data-check
+  cancel-in-progress: false
+
+env:
+  ALERT_TITLE: "Data check failed"
+
+jobs:
+  check:
+    name: Validate forked.json, digest pages, index and README
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Check the data files
+        run: python3 scripts/data_check.py
+
+      - name: Open or update issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          ./scripts/alert_issue.sh open "$ALERT_TITLE" "@$OWNER The nightly data check found a problem: $RUN_URL"
+
+      - name: Close issue if the data is healthy again
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          ./scripts/alert_issue.sh close "$ALERT_TITLE" "Resolved: all data files are consistent ($RUN_URL)."

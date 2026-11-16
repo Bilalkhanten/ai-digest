@@ -8,9 +8,10 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from email.utils import format_datetime
 from html import escape
 from pathlib import Path
@@ -258,6 +259,71 @@ def fetch_stars(entries, limit=100):
     return out
 
 
+WEEKLY_NAME = re.compile(r"^(\d{4})-W(\d{2})$")
+WEEKLY_ROW = re.compile(r"^\| (\d{4}-\d{2}-\d{2}) \| \[([^\]]+)\]\([^)]*\) \| ([\d,]+) \| ([^|]*?) \|", re.M)
+MAX_WEEKLY_ITEMS = 12
+
+
+def parse_weekly(text):
+    """Pull the intro line, the repo rows and the themes paragraph out of a weekly page."""
+    intro = re.search(r"^(\d+ repos? featured, [^\n]+)$", text, re.M)
+    themes = re.search(r"^## Themes\s*\n+(.+?)(?:\n\s*\n|\Z)", text, re.M | re.S)
+    return {
+        "intro": intro.group(1) if intro else "",
+        "themes": themes.group(1).strip() if themes else "",
+        "repos": [(r, int(s.replace(",", "")), t.strip()) for _, r, s, t in WEEKLY_ROW.findall(text)],
+    }
+
+
+def weekly_items(weekly_dir, repo_slug, site_url):
+    """Feed items for the weekly pages, newest week first."""
+    items = []
+    for path in sorted(Path(weekly_dir).glob("*.md"), reverse=True)[:MAX_WEEKLY_ITEMS]:
+        m = WEEKLY_NAME.match(path.stem)
+        if not m:
+            continue
+        try:
+            sunday = date.fromisocalendar(int(m.group(1)), int(m.group(2)), 7)
+        except ValueError:
+            continue
+        info = parse_weekly(path.read_text(encoding="utf-8"))
+        lines = [info["intro"]] if info["intro"] else []
+        if info["themes"]:
+            lines.append(info["themes"])
+        lines += [f"{r} ({s:,} stars, {t})" for r, s, t in info["repos"]]
+        link = site_url
+        if repo_slug:
+            link = f"https://github.com/{repo_slug}/blob/main/digest/weekly/{path.name}"
+        items.append({
+            "title": f"Week {path.stem}",
+            "link": link or "https://github.com",
+            "guid": f"{site_url or 'digest'}#weekly-{path.stem}",
+            "published": datetime(sunday.year, sunday.month, sunday.day, 18, 23, tzinfo=timezone.utc),
+            "description": "\n".join(lines),
+        })
+    return items
+
+
+def render_weekly_feed(items, site_url, now):
+    body = "".join(
+        "<item>"
+        f"<title>{xml_escape(i['title'])}</title>"
+        f"<link>{xml_escape(i['link'])}</link>"
+        f"<guid isPermaLink='false'>{xml_escape(i['guid'])}</guid>"
+        f"<pubDate>{format_datetime(i['published'])}</pubDate>"
+        f"<description>{xml_escape(i['description'])}</description>"
+        "</item>"
+        for i in items
+    )
+    return (
+        "<?xml version='1.0' encoding='UTF-8'?><rss version='2.0'><channel>"
+        "<title>Repo digest: weekly roll-ups</title>"
+        f"<link>{xml_escape(site_url or 'https://github.com')}</link>"
+        "<description>One summary per week of the repos featured in the digest.</description>"
+        f"<lastBuildDate>{format_datetime(now)}</lastBuildDate>{body}</channel></rss>"
+    )
+
+
 def build(out_dir, state=None, now=None, stars_now=None, areas=None):
     state = load_state() if state is None else state
     now = now or datetime.now(timezone.utc)
@@ -269,6 +335,10 @@ def build(out_dir, state=None, now=None, stars_now=None, areas=None):
     feeds = [("All", "feed.xml")]
     if len(present) > 1:
         feeds += [(name, f"feed-{area_slug(name)}.xml") for name in present]
+    slug = os.getenv("GITHUB_REPOSITORY", "")
+    weekly_feed_items = weekly_items(WEEKLY_DIR, slug, site_url) if weekly else []
+    if weekly_feed_items:
+        feeds.append(("Weekly", "feed-weekly.xml"))
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     (out / "index.html").write_text(
@@ -279,8 +349,13 @@ def build(out_dir, state=None, now=None, stars_now=None, areas=None):
     )
     (out / "feed.xml").write_text(render_feed(entries[:MAX_FEED_ENTRIES], site_url, now), encoding="utf-8")
     for name, file in feeds[1:]:
+        if file == "feed-weekly.xml":
+            continue
         mine = [e for e in entries if area_for(e["topic"], areas) == name][:MAX_FEED_ENTRIES]
         (out / file).write_text(render_feed(mine, site_url, now, f"Repo digest: {name}"), encoding="utf-8")
+    if weekly_feed_items:
+        weekly_xml = render_weekly_feed(weekly_feed_items, site_url, now)
+        (out / "feed-weekly.xml").write_text(weekly_xml, encoding="utf-8")
     infos = [info_for(e) for e in entries]
     (out / "stats.html").write_text(
         render_stats_page(

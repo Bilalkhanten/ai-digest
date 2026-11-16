@@ -245,6 +245,105 @@ class PerAreaFeedTests(unittest.TestCase):
         self.assertIn("By area", (out / "stats.html").read_text())
 
 
+WEEKLY_PAGE = """# Week 2026-W47
+
+2 repos featured, 2026-11-16 to 2026-11-17.
+
+## Themes
+
+Agents everywhere & <script>alert(1)</script> tooling.
+
+## Repos
+
+| Date | Repo | Stars | Topic | Language |
+|---|---|---|---|---|
+| 2026-11-16 | [acme/agent](https://github.com/me/agent) | 1,500 | llm | Python |
+| 2026-11-17 | [evil/<b>x](https://github.com/evil/x) | 800 | sre | Go |
+
+## By topic
+
+- llm: 1
+"""
+
+
+class WeeklyFeedTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        self.weekly = self.root / "digest" / "weekly"
+        self.weekly.mkdir(parents=True)
+        self.now = datetime(2026, 11, 22, 19, tzinfo=timezone.utc)
+        for p in (mock.patch.object(bs, "DIGEST_DIR", self.root / "digest"),
+                  mock.patch.object(bs, "WEEKLY_DIR", self.weekly)):
+            p.start()
+        self.addCleanup(mock.patch.stopall)
+
+    def items(self, slug="Me/ai-digest"):
+        return bs.weekly_items(self.weekly, slug, "https://me.github.io/ai-digest/")
+
+    def test_parse_weekly(self):
+        info = bs.parse_weekly(WEEKLY_PAGE)
+        self.assertEqual(info["intro"], "2 repos featured, 2026-11-16 to 2026-11-17.")
+        self.assertTrue(info["themes"].startswith("Agents everywhere"))
+        self.assertEqual(info["repos"][0], ("acme/agent", 1500, "llm"))
+        self.assertEqual(len(info["repos"]), 2)
+
+    def test_parse_weekly_without_themes_or_rows(self):
+        info = bs.parse_weekly("# Week 2026-W01\n\nnothing\n")
+        self.assertEqual((info["intro"], info["themes"], info["repos"]), ("", "", []))
+
+    def test_item_fields_and_sunday_publish_date(self):
+        (self.weekly / "2026-W47.md").write_text(WEEKLY_PAGE)
+        (item,) = self.items()
+        self.assertEqual(item["title"], "Week 2026-W47")
+        self.assertEqual(item["link"], "https://github.com/Me/ai-digest/blob/main/digest/weekly/2026-W47.md")
+        self.assertEqual(item["published"], datetime(2026, 11, 22, 18, 23, tzinfo=timezone.utc))   # that week's Sunday
+        self.assertIn("acme/agent (1,500 stars, llm)", item["description"])
+
+    def test_newest_week_first_and_junk_files_are_skipped(self):
+        for name in ("2026-W45.md", "2026-W47.md", "2026-W46.md", "notes.md", "2026-W99.md"):
+            (self.weekly / name).write_text(WEEKLY_PAGE)
+        self.assertEqual([i["title"] for i in self.items()], ["Week 2026-W47", "Week 2026-W46", "Week 2026-W45"])
+
+    def test_item_count_is_capped(self):
+        for w in range(1, 30):
+            (self.weekly / f"2026-W{w:02d}.md").write_text(WEEKLY_PAGE)
+        self.assertEqual(len(self.items()), bs.MAX_WEEKLY_ITEMS)
+
+    def test_without_a_repo_slug_it_links_to_the_site(self):
+        (self.weekly / "2026-W47.md").write_text(WEEKLY_PAGE)
+        self.assertEqual(self.items(slug="")[0]["link"], "https://me.github.io/ai-digest/")
+
+    def test_feed_is_valid_xml_and_escapes_untrusted_text(self):
+        (self.weekly / "2026-W47.md").write_text(WEEKLY_PAGE)
+        xml = bs.render_weekly_feed(self.items(), "https://me.github.io/ai-digest/", self.now)
+        root = ET.fromstring(xml)
+        self.assertEqual(root.findtext("./channel/title"), "Repo digest: weekly roll-ups")
+        description = root.findtext("./channel/item/description")
+        self.assertIn("<script>alert(1)</script>", description)     # preserved as TEXT after XML unescaping
+        self.assertNotIn("<script>", xml)                              # but never as markup in the XML itself
+        self.assertTrue(root.findtext("./channel/item/pubDate").endswith("+0000"))
+
+    def test_build_writes_the_weekly_feed_and_lists_it(self):
+        (self.weekly / "2026-W47.md").write_text(WEEKLY_PAGE)
+        out = bs.build(self.root / "site", state=TopicFilterTests.ENTRIES[:2], now=self.now)
+        self.assertTrue((out / "feed-weekly.xml").exists())
+        html = (out / "index.html").read_text()
+        self.assertIn("<a href='feed-weekly.xml'>Weekly</a>", html)
+        self.assertIn("title='Repo digest: Weekly'", html)
+
+    def test_no_weekly_pages_means_no_weekly_feed(self):
+        out = bs.build(self.root / "site", state=TopicFilterTests.ENTRIES[:2], now=self.now)
+        self.assertFalse((out / "feed-weekly.xml").exists())
+        self.assertNotIn("feed-weekly.xml", (out / "index.html").read_text())
+
+    def test_an_unreadable_weekly_page_does_not_break_the_site_build(self):
+        (self.weekly / "2026-W47.md").write_text("garbage with no structure at all")
+        out = bs.build(self.root / "site", state=TopicFilterTests.ENTRIES[:2], now=self.now)
+        ET.fromstring((out / "feed-weekly.xml").read_text())
+
+
 class LanguageDisplayTests(unittest.TestCase):
     def test_unknown_language_is_not_shown_as_na(self):
         entry = [{"date": "2026-11-18", "repo": "a/b", "stars": 1, "topic": "sre", "fork_url": None}]

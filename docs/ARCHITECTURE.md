@@ -39,6 +39,8 @@ flowchart LR
     WEEKLY --> WP["weekly pages"]
     SITE --> PAGES["Pages: site, stats, RSS, open data"]
     DOG --> ISSUE["alert issue"]
+    CHECK["data_check.py"] --> ISSUE
+    STATE --> CHECK
     INV --> REPORT["inventory issue"]
 ```
 
@@ -52,6 +54,7 @@ change is a commit, so the history is the audit log and a same-day rerun is a no
 | CI | every push and PR | tests on Python 3.10 to 3.13, ruff, shellcheck, actionlint, and a sole-author check |
 | Daily repo fork | 07:17 UTC | tests gate the fork; pick, fork, commit; notify; optional site publish |
 | Weekly roll-up | Sundays 18:23 UTC | weekly page with topic, language and star-gain stats |
+| Data check | daily 03:41 UTC and in CI | validates the data files (`forked.json`, digest pages, index, README block, weekly pages, config) |
 | Watchdog | daily 12:07 UTC | opens an issue if no digest for 2+ days |
 | Token health | Mondays 06:43 UTC | checks the token's validity, scopes and expiry |
 | Fork inventory | 1st of the month | read-only report of forks made by the tool |
@@ -69,6 +72,10 @@ change is a commit, so the history is the audit log and a same-day rerun is a no
 - **Least privilege everywhere.** Workflows start with no permissions; each job asks for the
   minimum. First-party actions are pinned to commit SHAs and kept current by Dependabot. The
   token is a classic PAT with only `public_repo`, and its expiry is monitored.
+- **The data is checked, not trusted.** Git is the database, so a bad write would be permanent
+  history. A nightly job (and CI) verifies the entries, that each has a matching digest page,
+  that the index and README block agree with them, and that the config is coherent. It checks
+  structure, not exact text, so changing a template never makes it fail.
 - **One contributor, enforced.** CI fails if a new commit has an author or committer outside
   `.github/allowed-authors.txt`, or a `Co-authored-by` line for anyone else. It is a separate job,
   not part of the daily run's test gate, so a slip can never stop the daily digest.

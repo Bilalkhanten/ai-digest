@@ -39,6 +39,7 @@ Design notes, the data flow, known limits and a runbook are in
 | **Daily repo fork** (`daily-fork.yml`) | 07:17 UTC daily, manual | `verify` (tests) gates `fork` (pick, fork, commit digest). On failure it opens one issue; the next success closes it |
 | **Token health** (`token-health.yml`) | Mondays 06:43 UTC, manual | checks `FORK_PAT` is valid, has only `public_repo`, and is not within 14 days of expiry; opens an issue if not |
 | **Weekly roll-up** (`weekly-rollup.yml`) | Sundays 18:23 UTC, manual | writes `digest/weekly/YYYY-Www.md` (repos, topic and language counts, optional Claude themes) and commits it |
+| **Data check** (`data-check.yml`) | daily 03:41 UTC, manual, and in CI | validates `forked.json`, the digest pages, `INDEX.md`, the README block, weekly pages and `config.json`; opens an issue if anything is inconsistent |
 | **Watchdog** (`watchdog.yml`) | daily 12:07 UTC, manual | opens an issue if the newest digest is 2+ days old (a skipped or failing schedule) |
 | **Fork inventory** (`fork-inventory.yml`) | 1st of the month, manual | posts a read-only report of the forks this tool made, with candidates to prune. It never deletes anything |
 | **Publish site** (job in `daily-fork.yml`) | after each real run, if enabled | builds a small website and RSS feed from the digests. Off by default, see below |
@@ -138,7 +139,8 @@ The digest can be published as a small site with an RSS feed. It is off until yo
    `ENABLE_PAGES` = `true`.
 
 The site can be filtered by **area** (AI or Platform) and by topic, and offers a separate RSS feed
-for each area (`feed-ai.xml`, `feed-platform.xml`) as well as the combined `feed.xml`.
+for each area (`feed-ai.xml`, `feed-platform.xml`), the combined `feed.xml`, and `feed-weekly.xml` with
+one item per weekly roll-up.
 
 The site has a **Stats** page (streaks, picks per week, by topic and language, and a
 "where are they now" table comparing each pick's stars then and now; charts are plain SVG)
