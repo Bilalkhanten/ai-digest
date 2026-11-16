@@ -7,9 +7,10 @@ on:
 
 permissions: {}
 
-# Share one queue with the daily run so the two never push at the same moment.
+# Its own queue: a stuck weekly run must never be able to block the daily run. The two are
+# hours apart; the rebase before pushing covers the unlikely case of an overlap.
 concurrency:
-  group: repo-writes
+  group: weekly-rollup
   cancel-in-progress: false
 
 env:
@@ -52,6 +53,7 @@ jobs:
             exit 0
           fi
           git commit -m "weekly: ${WRITTEN%.md}"
+          git pull --rebase origin "$GITHUB_REF_NAME"
           git push
 
       - name: Open or update issue
