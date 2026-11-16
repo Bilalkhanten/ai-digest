@@ -14,7 +14,7 @@ on:
 permissions: {}
 
 concurrency:
-  group: repo-writes
+  group: daily-fork
   cancel-in-progress: false
 
 env:
@@ -70,6 +70,7 @@ jobs:
           git config user.email "$COMMIT_EMAIL"
           git add digest forked.json INDEX.md README.md
           git commit -m "digest: $PICKED"
+          git pull --rebase origin "$GITHUB_REF_NAME"
           git push
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
