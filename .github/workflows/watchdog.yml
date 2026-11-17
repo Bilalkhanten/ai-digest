@@ -2,8 +2,14 @@ name: Watchdog
 
 on:
   schedule:
-    - cron: "7 12 * * *"   # daily 12:07 UTC, hours after the 07:17 digest run
+    - cron: "7 12 * * *"    # daily 12:07 UTC, hours after the 07:17 digest run
+    - cron: "47 18 * * *"   # second chance in case GitHub delays or skips the first
   workflow_dispatch:
+    inputs:
+      test_catch_up:
+        description: "Test the repair step by pretending today's digest is missing (harmless)"
+        type: boolean
+        default: false
 
 permissions: {}
 
@@ -12,19 +18,33 @@ env:
 
 jobs:
   check:
-    name: Check the digest is arriving
+    name: Check the digest is arriving (and repair a missed day)
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       contents: read
       issues: write
+      actions: write    # lets the repair step start the daily workflow
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
       - name: Check the newest digest date
+        id: check
         env:
           OVERDUE_DAYS: "2"
+          FORCE_CATCH_UP: ${{ inputs.test_catch_up && '1' || '0' }}
         run: python3 scripts/watchdog.py
+
+      # GitHub sometimes delays or skips scheduled runs. If today's digest is still missing,
+      # start the daily workflow ourselves. It is idempotent, so this can never double up.
+      - name: Repair a missed day
+        if: always() && steps.check.outputs.missing_today == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          echo "Today's digest is missing; starting the daily workflow."
+          gh workflow run daily-fork.yml --ref "$GITHUB_REF_NAME" -f dry_run=false
 
       - name: Open or update issue
         if: failure()

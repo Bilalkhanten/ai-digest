@@ -2,7 +2,9 @@ name: Daily repo fork
 
 on:
   schedule:
-    - cron: "17 7 * * *"   # 07:17 UTC daily (GitHub may delay scheduled runs)
+    - cron: "17 7 * * *"    # 07:17 UTC daily
+    - cron: "43 13 * * *"   # backup slots: GitHub often delays or skips scheduled runs, and the
+    - cron: "29 19 * * *"   # job does nothing if today's digest already exists, so extras are free
   workflow_dispatch:
     inputs:
       dry_run:

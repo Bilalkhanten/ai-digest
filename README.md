@@ -37,11 +37,11 @@ Design notes, the data flow, known limits and a runbook are in
 | Workflow | Trigger | What it does |
 |---|---|---|
 | **CI** (`ci.yml`) | every push, PRs to `main` | offline tests on Python 3.10 to 3.13, `ruff`, `shellcheck`, `actionlint`, and a sole-author check (only the identities in `.github/allowed-authors.txt`, no `Co-authored-by`) |
-| **Daily repo fork** (`daily-fork.yml`) | 07:17 UTC daily, manual | `verify` (tests) gates `fork` (pick, fork, commit digest). On failure it opens one issue; the next success closes it |
+| **Daily repo fork** (`daily-fork.yml`) | 07:17 UTC daily, with backup slots at 13:43 and 19:29 UTC, manual | `verify` (tests) gates `fork` (pick, fork, commit digest). On failure it opens one issue; the next success closes it |
 | **Token health** (`token-health.yml`) | Mondays 06:43 UTC, manual | checks `FORK_PAT` is valid, has only `public_repo`, and is not within 14 days of expiry; opens an issue if not |
 | **Weekly roll-up** (`weekly-rollup.yml`) | Sundays 18:23 UTC, manual | writes `digest/weekly/YYYY-Www.md` (repos, topic and language counts, optional Claude themes) and commits it |
 | **Data check** (`data-check.yml`) | daily 03:41 UTC, manual, and in CI | validates `forked.json`, the digest pages, `INDEX.md`, the README block, weekly pages and `config.json`; opens an issue if anything is inconsistent |
-| **Watchdog** (`watchdog.yml`) | daily 12:07 UTC, manual | opens an issue if the newest digest is 2+ days old (a skipped or failing schedule) |
+| **Watchdog** (`watchdog.yml`) | daily 12:07 and 18:47 UTC, manual | if today's digest is missing it starts the daily workflow itself (a repair for skipped schedules), and opens an issue if the newest digest is 2+ days old |
 | **Fork inventory** (`fork-inventory.yml`) | 1st of the month, manual | posts a read-only report of the forks this tool made, with candidates to prune. It never deletes anything |
 | **Publish site** (job in `daily-fork.yml`) | after each real run, if enabled | builds a small website and RSS feed from the digests. Off by default, see below |
 | **Dependabot** | monthly | keeps the GitHub Actions versions current. Actions are pinned to commit SHAs |

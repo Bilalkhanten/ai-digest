@@ -92,6 +92,27 @@ class InstallTests(unittest.TestCase):
         self.assertEqual(gl.install_hint("```\ndocker run -p 80:80 img\n```"), "docker run -p 80:80 img")
 
 
+class CleanupRegressionTests(unittest.TestCase):
+    """Bugs seen on the first real digest page."""
+
+    def test_underscores_in_identifiers_survive_but_emphasis_underscores_go(self):
+        self.assertEqual(gl._strip_inline("set SMOLVM_MOUNT_DAX and my_var_name"), "set SMOLVM_MOUNT_DAX and my_var_name")
+        self.assertEqual(gl._strip_inline("this is _emphasised_ and __bold__ text"), "this is emphasised and bold text")
+        self.assertEqual(gl._strip_inline("_leading and trailing_"), "leading and trailing")
+
+    def test_release_notes_keep_env_var_names(self):
+        notes = gl.release_notes({"body": "* docs: SMOLVM_MOUNT_DAX does nothing on arm64"})
+        self.assertEqual(notes, "docs: SMOLVM_MOUNT_DAX does nothing on arm64")
+
+    def test_install_hint_drops_trailing_comments_and_extra_spaces(self):
+        block = "```\nbrew install smol-machines/tap/smolvm                  # macOS (Homebrew)\n```"
+        self.assertEqual(gl.install_hint(block), "brew install smol-machines/tap/smolvm")
+        self.assertEqual(gl.install_hint("```\npip   install   foo\n```"), "pip install foo")
+
+    def test_hash_inside_a_command_argument_is_kept(self):
+        self.assertEqual(gl.install_hint("```\ngo install example.com/x@v1#frag\n```"), "go install example.com/x@v1#frag")
+
+
 class AgeAndReleaseTests(unittest.TestCase):
     TODAY = date(2026, 11, 16)
 

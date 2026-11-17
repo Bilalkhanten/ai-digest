@@ -4,7 +4,11 @@
 Scheduled GitHub workflows are sometimes delayed or skipped, and a silent gap is easy to
 miss. This checks the newest entry in forked.json against today's date (UTC).
 
+It also reports whether TODAY's digest is missing ("missing_today") as a workflow output, so the
+workflow can repair a skipped run by starting the daily workflow (which is idempotent).
+
 Environment: OVERDUE_DAYS (default 2) = alert when the newest digest is at least this old.
+             FORCE_CATCH_UP=1 = pretend today's digest is missing (used to test the repair path).
 """
 from __future__ import annotations
 
@@ -29,9 +33,26 @@ def evaluate(state, today, overdue_days=2):
     return True, f"Newest digest is from {last} ({gap} days ago). On schedule."
 
 
+def missing_today(state, today):
+    """True if no digest exists yet for `today` (a date)."""
+    return not any(parse_date(e["date"]) == today for e in state)
+
+
+def set_output(name, value):
+    path = os.getenv("GITHUB_OUTPUT")
+    if path:
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(f"{name}={value}\n")
+
+
 def main():
     overdue = int(os.getenv("OVERDUE_DAYS", "2"))
-    ok, message = evaluate(load_state(), datetime.now(timezone.utc).date(), overdue)
+    state, today = load_state(), datetime.now(timezone.utc).date()
+    ok, message = evaluate(state, today, overdue)
+    missing = missing_today(state, today) or os.getenv("FORCE_CATCH_UP") == "1"
+    set_output("missing_today", "true" if missing else "false")
+    if missing:
+        message += f" Today's digest ({today}) is missing."
     print(message)
     summary = os.getenv("GITHUB_STEP_SUMMARY")
     if summary:

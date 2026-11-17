@@ -30,7 +30,8 @@ def _strip_inline(text):
     text = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", text)            # links -> their text
     text = re.sub(r"<[^>]+>", " ", text)                             # HTML tags
     text = re.sub(r"https?://\S+", " ", text)                        # bare URLs
-    text = re.sub(r"[`*_~]+", "", text)                              # emphasis / code marks
+    text = re.sub(r"[`*~]+", "", text)                               # emphasis / code marks
+    text = re.sub(r"(?<![A-Za-z0-9])_+|_+(?![A-Za-z0-9])", "", text)    # _emphasis_, but keep SOME_VAR
     text = text.replace("@", "")                                     # never create mentions
     return re.sub(r"\s+", " ", text).strip()
 
@@ -104,7 +105,8 @@ def install_hint(text):
             continue
         m = _INSTALL.match(line.strip())
         if m and "`" not in m.group(1) and "<" not in m.group(1):
-            return m.group(1).strip()[:100]
+            command = re.sub(r"\s+#.*$", "", m.group(1))   # "brew install x   # macOS" -> "brew install x"
+            return re.sub(r"\s{2,}", " ", command).strip()[:100]
     return ""
 
 

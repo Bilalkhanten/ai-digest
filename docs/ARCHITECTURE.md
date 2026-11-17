@@ -52,10 +52,10 @@ change is a commit, so the history is the audit log and a same-day rerun is a no
 | Workflow | When | Job |
 |---|---|---|
 | CI | every push and PR | tests on Python 3.10 to 3.13, ruff, shellcheck, actionlint, and a sole-author check |
-| Daily repo fork | 07:17 UTC | tests gate the fork; pick, fork, commit; notify; optional site publish |
+| Daily repo fork | 07:17, 13:43 and 19:29 UTC | tests gate the fork; pick, fork, commit; notify; optional site publish. Extra slots are backups: a run does nothing if today's digest exists |
 | Weekly roll-up | Sundays 18:23 UTC | weekly page with topic, language and star-gain stats |
 | Data check | daily 03:41 UTC and in CI | validates the data files (`forked.json`, digest pages, index, README block, weekly pages, config) |
-| Watchdog | daily 12:07 UTC | opens an issue if no digest for 2+ days |
+| Watchdog | daily 12:07 and 18:47 UTC | starts the daily workflow if today's digest is missing; opens an issue if there is none for 2+ days |
 | Token health | Mondays 06:43 UTC | checks the token's validity, scopes and expiry |
 | Fork inventory | 1st of the month | read-only report of forks made by the tool |
 
@@ -63,6 +63,10 @@ change is a commit, so the history is the audit log and a same-day rerun is a no
 
 - **Tests gate the fork.** A broken script must never fork or commit. The `verify` job runs the
   offline suite first and the fork job depends on it.
+- **Scheduled runs are unreliable, so the system repairs itself.** GitHub can delay or skip
+  scheduled workflows (on day one the data check ran about 8 hours 44 minutes late and the daily
+  run never fired). The daily workflow therefore has two backup slots, and the watchdog starts it
+  if today's digest is still missing. Every run is idempotent, so repeats do nothing.
 - **Failures are loud, and heal themselves.** A failed run opens one issue and `@mentions` the
   owner; the next success closes it. The watchdog catches the case where nothing runs at all.
 - **Unknown is not a strike.** If a README or release lookup fails (rate limit, network), the
@@ -92,8 +96,9 @@ change is a commit, so the history is the audit log and a same-day rerun is a no
 
 ## Known limits
 
-- Scheduled workflows can be delayed or skipped by GitHub, and are paused after 60 days without
-  repository activity; the daily commit and the watchdog cover this.
+- Scheduled workflows can be delayed by hours or skipped by GitHub, and are paused after 60 days
+  without repository activity; the backup slots, the watchdog's repair step and the daily commit
+  cover this. The watchdog is itself scheduled, so a very bad day can still delay a repair.
 - The token expires (90 days by default) and has to be renewed by hand.
 - The search API returns at most 100 repos per topic per call, and unauthenticated calls are heavily
   rate-limited, so every job uses a token.
@@ -106,5 +111,5 @@ change is a commit, so the history is the audit log and a same-day rerun is a no
 |---|---|---|
 | Issue "Daily repo fork failed" | expired or revoked token, GitHub outage, or a failing test | open the linked run; regenerate `FORK_PAT` if it is a 401 |
 | Issue "FORK_PAT token needs attention" | token expiring within 14 days, or has extra scopes | regenerate with `public_repo` only and update the secret |
-| Issue "Daily digest is overdue" | the schedule was skipped or the run keeps failing | check the Actions tab; run "Daily repo fork" manually |
+| Issue "Daily digest is overdue" | the schedule was skipped and the repair did not help, or the run keeps failing | check the Actions tab; run "Daily repo fork" manually |
 | No notification | notifications off for the app | Settings > Notifications, enable mentions |
