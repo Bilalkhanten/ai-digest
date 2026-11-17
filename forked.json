@@ -5,5 +5,12 @@
     "stars": 6225,
     "topic": "llm",
     "fork_url": "https://github.com/Bilalkhanten/Raven"
+  },
+  {
+    "date": "2026-11-17",
+    "repo": "smol-machines/smolvm",
+    "stars": 7127,
+    "topic": "containers",
+    "fork_url": "https://github.com/Bilalkhanten/smolvm"
   }
 ]

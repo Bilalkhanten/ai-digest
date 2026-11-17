@@ -13,6 +13,7 @@ toward your contribution graph. See [INDEX.md](INDEX.md) for the log.
 <!-- LATEST-PICKS:START -->
 | Date | Repo | Stars | Topic |
 |---|---|---|---|
+| 2026-11-17 | [smol-machines/smolvm](https://github.com/smol-machines/smolvm) | 7,127 | containers |
 | 2026-11-16 | [EverMind-AI/Raven](https://github.com/EverMind-AI/Raven) | 6,225 | llm |
 <!-- LATEST-PICKS:END -->
 
