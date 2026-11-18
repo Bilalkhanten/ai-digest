@@ -12,5 +12,12 @@
     "stars": 7127,
     "topic": "containers",
     "fork_url": "https://github.com/Bilalkhanten/smolvm"
+  },
+  {
+    "date": "2026-11-18",
+    "repo": "vllm-project/vllm-omni",
+    "stars": 7813,
+    "topic": "diffusion",
+    "fork_url": "https://github.com/Bilalkhanten/vllm-omni"
   }
 ]
