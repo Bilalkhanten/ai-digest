@@ -11,6 +11,40 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 import build_site as bs  # noqa: E402
 
+_REAL = {"digest": bs.DIGEST_DIR, "weekly": bs.WEEKLY_DIR}
+_GUARD = {}
+
+
+def setUpModule():
+    """Point the site builder at an empty digest folder for EVERY test in this file.
+
+    Without this, a test whose fixture date equals a real digest's date silently reads that real
+    page. That is exactly what broke the daily run's test gate the day a real digest for the
+    fixture date appeared. Direct assignment (not mock) so mock.patch.stopall() cannot undo it."""
+    _GUARD["tmp"] = tempfile.TemporaryDirectory()
+    digest = Path(_GUARD["tmp"].name) / "digest"
+    (digest / "weekly").mkdir(parents=True)
+    bs.DIGEST_DIR, bs.WEEKLY_DIR = digest, digest / "weekly"
+
+
+def tearDownModule():
+    bs.DIGEST_DIR, bs.WEEKLY_DIR = _REAL["digest"], _REAL["weekly"]
+    _GUARD["tmp"].cleanup()
+
+
+class IsolationGuardTests(unittest.TestCase):
+    def test_tests_never_read_the_real_digest_folder(self):
+        self.assertNotEqual(bs.DIGEST_DIR, _REAL["digest"])
+        self.assertNotEqual(bs.WEEKLY_DIR, _REAL["weekly"])
+        self.assertEqual(list(bs.DIGEST_DIR.glob("*.md")), [])
+
+    def test_a_fixture_date_matching_a_real_digest_cannot_leak_in(self):
+        # Regression: on 2026-11-18 a real digest with this date existed and changed the output.
+        entry = [{"date": "2026-11-18", "repo": "a/b", "stars": 1, "topic": "sre", "fork_url": None}]
+        html = bs.render_index(entry, [], "", "")
+        self.assertNotIn("vllm", html)
+        self.assertNotIn("Python", html)
+
 STATE = [
     {"date": "2026-11-16", "repo": "acme/agent", "stars": 1234, "topic": "llm", "fork_url": "https://github.com/me/agent"},
     {"date": "2026-11-17", "repo": "evil/x", "stars": 5, "topic": "rag", "fork_url": None},
