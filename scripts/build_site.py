@@ -40,6 +40,8 @@ a{color:var(--link)} h1{margin:0 0 .25rem} .muted{color:var(--muted);font-size:.
 article{border-top:1px solid var(--line);padding:1rem 0} h2{font-size:1.1rem;margin:0}
 ul{margin:.4rem 0 0 1.2rem;padding:0}
 [hidden]{display:none!important}
+input[type=search]{font:inherit;width:100%;box-sizing:border-box;padding:.4rem .6rem;color:var(--fg);
+background:transparent;border:1px solid var(--line);border-radius:.4rem;margin:.5rem 0}
 .chips{display:flex;flex-wrap:wrap;gap:.4rem;margin:.75rem 0}
 .chip{font:inherit;font-size:.85rem;color:var(--fg);background:transparent;border:1px solid var(--line);
 border-radius:999px;padding:.15rem .7rem;cursor:pointer}
@@ -54,7 +56,8 @@ FILTER_JS = """
   var fnav=document.getElementById('filters'); if(!fnav) return;
   var anav=document.getElementById('areas');
   var arts=document.querySelectorAll('article[data-topic]');
-  var area='', topic='';
+  var area='', topic='', query='';
+  var box=document.getElementById('q');
   function press(nav, btn){
     nav.querySelectorAll('button').forEach(function(x){
       x.setAttribute('aria-pressed', x===btn?'true':'false');
@@ -62,7 +65,8 @@ FILTER_JS = """
   }
   function apply(){
     arts.forEach(function(a){
-      a.hidden=(area!==''&&a.getAttribute('data-area')!==area)||(topic!==''&&a.getAttribute('data-topic')!==topic);
+      a.hidden=(area!==''&&a.getAttribute('data-area')!==area)||(topic!==''&&a.getAttribute('data-topic')!==topic)||
+        (query!==''&&a.textContent.toLowerCase().indexOf(query)===-1);
     });
     fnav.querySelectorAll('button').forEach(function(b){
       var t=b.getAttribute('data-topic');
@@ -70,6 +74,10 @@ FILTER_JS = """
     });
   }
   fnav.hidden=false;
+  if(box){
+    box.hidden=false;
+    box.addEventListener('input',function(){ query=box.value.trim().toLowerCase(); apply(); });
+  }
   fnav.addEventListener('click',function(e){
     var b=e.target.closest('button[data-topic]'); if(!b) return;
     topic=b.getAttribute('data-topic'); press(fnav,b); apply();
@@ -115,10 +123,11 @@ def chips_html(entries, areas=None):
     topic_buttons += [
         _chip(f"data-topic='{escape(t)}' data-area='{escape(area_of[t])}'", t, n, "false") for t, n in chosen
     ]
+    search = "<input id='q' type='search' placeholder='Search picks' aria-label='Search picks' hidden>"
     topic_nav = "<nav id='filters' class='chips' aria-label='Filter by topic' hidden>"
     topic_nav += "".join(topic_buttons) + "</nav>"
     if len(per_area) < 2:
-        return topic_nav
+        return search + topic_nav
     area_buttons = [_chip("data-area=''", "All areas", len(entries), "true")]
     area_buttons += [
         _chip(f"data-area='{escape(name)}'", name, n, "false")
@@ -126,7 +135,7 @@ def chips_html(entries, areas=None):
     ]
     area_nav = "<nav id='areas' class='chips' aria-label='Filter by area' hidden>"
     area_nav += "".join(area_buttons) + "</nav>"
-    return area_nav + topic_nav
+    return search + area_nav + topic_nav
 
 
 def info_for(entry):

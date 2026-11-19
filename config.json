@@ -44,6 +44,8 @@
   "contribution_labels": ["good first issue", "help wanted"],
   "max_opportunities": 3,
   "opportunity_max_age_days": 180,
+  "include_languages": [],
+  "exclude_languages": [],
   "exclude_repos": [],
   "exclude_owners": [],
   "exclude_name_patterns": [

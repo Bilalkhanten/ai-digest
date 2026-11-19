@@ -58,6 +58,8 @@ DEFAULT_CONFIG = {
     "contribution_labels": ["good first issue", "help wanted"],   # issues newcomers can take, best first
     "max_opportunities": 3,        # how many open issues to list on a digest page (0 = none)
     "opportunity_max_age_days": 180,   # ignore issues with no activity for this long
+    "include_languages": [],       # only pick these languages, e.g. ["Python", "Go"] (empty = any)
+    "exclude_languages": [],       # never pick these languages
     "exclude_repos": [],           # "owner/name"
     "exclude_owners": [],
     "exclude_name_patterns": ["^awesome", "interview", "roadmap", "cheat-?sheet"],   # regexes on the name
@@ -147,6 +149,12 @@ def is_excluded(repo):
         return True
     desc = (repo.get("description") or "").lower()
     if any(k.lower() in desc for k in CONFIG["exclude_description_keywords"]):
+        return True
+    language = (repo.get("language") or "").lower()
+    wanted = {x.lower() for x in CONFIG["include_languages"]}
+    if wanted and language not in wanted:
+        return True
+    if language and language in {x.lower() for x in CONFIG["exclude_languages"]}:
         return True
     return repo.get("size") == 0  # empty repositories
 

@@ -356,6 +356,19 @@ class ExclusionTests(unittest.TestCase):
             self.assertTrue(df.is_excluded(make_repo("spammer/x")))
             self.assertFalse(df.is_excluded(make_repo("fine/x")))
 
+    def test_language_allow_and_block_lists(self):
+        py, go, none = make_repo("a/py"), {**make_repo("a/go"), "language": "Go"}, {**make_repo("a/n"), "language": None}
+        with self.cfg(include_languages=["python"]):          # case-insensitive allowlist
+            self.assertFalse(df.is_excluded(py))
+            self.assertTrue(df.is_excluded(go))
+            self.assertTrue(df.is_excluded(none))              # unknown language can't match an allowlist
+        with self.cfg(exclude_languages=["GO"]):
+            self.assertTrue(df.is_excluded(go))
+            self.assertFalse(df.is_excluded(py))
+            self.assertFalse(df.is_excluded(none))
+        with self.cfg():                                       # defaults: anything goes
+            self.assertFalse(df.is_excluded(go))
+
     def test_empty_repo_is_excluded(self):
         with self.cfg():
             self.assertTrue(df.is_excluded({**make_repo(), "size": 0}))

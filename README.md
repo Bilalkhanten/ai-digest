@@ -133,6 +133,7 @@ Settings live in `config.json`; environment variables (`MIN_STARS`, `MAX_AGE_DAY
 | `release_bonus_days` / `release_check_top` | 30 / 6 | among the first N candidates, those with a release this recent go first |
 | `contribution_labels` | `good first issue`, `help wanted` | issue labels to list, best first |
 | `max_opportunities` / `opportunity_max_age_days` | 3 / 180 | how many issues to list (0 turns the section off), and how recently they were active |
+| `include_languages` / `exclude_languages` | empty | only pick these languages (e.g. `["Python", "Go"]`), or never pick these; names match GitHub's, case-insensitively |
 | `exclude_repos`, `exclude_owners` | empty | never pick these (`owner/name`, owner login) |
 | `exclude_name_patterns` | `^awesome`, `interview`, `roadmap` | regexes matched against the repo name |
 | `exclude_description_keywords` | curated list, awesome list, ... | skip if the description contains any |

@@ -126,6 +126,13 @@ class BuildSiteTests(unittest.TestCase):
                          now=datetime(2026, 11, 17, 12, tzinfo=timezone.utc))
         self.assertIn("No open beginner-friendly issues", (empty / "contribute.html").read_text())
 
+    def test_search_box_is_hidden_until_javascript_runs_and_wired_up(self):
+        html = (self.out / "index.html").read_text()
+        self.assertIn("<input id='q' type='search' placeholder='Search picks' aria-label='Search picks' hidden>", html)
+        self.assertIn("getElementById('q')", html)
+        self.assertLess(html.index("id='q'"), html.index("id='filters'"))
+        self.assertNotIn("id='q'", bs.render_index([], [], "", ""))
+
     def test_pages_without_opportunities_show_no_such_block(self):
         self.assertNotIn("Ways to contribute", (self.out / "index.html").read_text())
 
