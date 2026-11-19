@@ -179,6 +179,69 @@ def advisory_text(advisories):
     return f"{parts[0]} ({detail})" if detail else parts[0]
 
 
+def clean_title(title, limit=90):
+    """An issue title reduced to safe plain text (it is untrusted and goes inside a Markdown link)."""
+    text = _strip_inline(str(title or ""))
+    text = re.sub(r"[\[\]()<>|]", "", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    if len(text) > limit:
+        text = text[:limit].rsplit(" ", 1)[0].rstrip(",.;:") + "..."
+    return text
+
+
+def _issue_age_days(issue, today):
+    try:
+        return (today - date.fromisoformat(str(issue.get("updated_at") or "")[:10])).days
+    except ValueError:
+        return None
+
+
+def pick_opportunities(issues_by_label, repo_name, today, maximum=3, max_age_days=180):
+    """Up to `maximum` open, unassigned, recently active issues a newcomer could take.
+
+    `issues_by_label` is [(label, [issue, ...]), ...] in priority order; each list is newest first.
+    Pull requests, locked, assigned and stale issues are dropped, and an issue listed under two
+    labels is kept once (under the first). The link is built from the issue number, never
+    taken from the response. Returns [{"title", "url", "label", "updated"}].
+    """
+    out, seen = [], set()
+    for label, issues in issues_by_label:
+        for issue in issues if isinstance(issues, list) else []:
+            if not isinstance(issue, dict) or "pull_request" in issue or issue.get("locked"):
+                continue
+            number = issue.get("number")
+            if not isinstance(number, int) or isinstance(number, bool) or number in seen:
+                continue
+            if issue.get("state", "open") != "open" or issue.get("assignees") or issue.get("assignee"):
+                continue
+            age = _issue_age_days(issue, today)
+            if age is None or age < 0 or age > max_age_days:
+                continue
+            title = clean_title(issue.get("title"))
+            if not title:
+                continue
+            seen.add(number)
+            out.append({
+                "title": title,
+                "url": f"https://github.com/{repo_name}/issues/{number}",
+                "label": clean_title(label, 30),
+                "updated": age_text(str(issue.get("updated_at"))[:10], today),
+            })
+            if len(out) == maximum:
+                return out
+    return out
+
+
+def contributing_url(profile, repo_name):
+    """The repo's CONTRIBUTING file link from a community-profile response. '' if absent or odd."""
+    files = (profile or {}).get("files") if isinstance(profile, dict) else None
+    contributing = files.get("contributing") if isinstance(files, dict) else None
+    url = contributing.get("html_url") if isinstance(contributing, dict) else ""
+    if isinstance(url, str) and url.startswith(f"https://github.com/{repo_name}/") and " " not in url:
+        return url
+    return ""
+
+
 def build_extras(repo, readme, today, release=None, advisories=None):
     """Collect everything render_digest needs for the 'At a glance' section."""
     return {

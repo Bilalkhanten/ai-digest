@@ -41,6 +41,9 @@
   "max_age_days": 30,
   "fork_every_days": 1,
   "min_readme_chars": 500,
+  "contribution_labels": ["good first issue", "help wanted"],
+  "max_opportunities": 3,
+  "opportunity_max_age_days": 180,
   "exclude_repos": [],
   "exclude_owners": [],
   "exclude_name_patterns": [

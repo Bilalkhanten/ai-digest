@@ -91,6 +91,10 @@ change is a commit, so the history is the audit log and a same-day rerun is a no
   command, sections, release notes, security advisories) uses only public repo data. GitHub Models
   was retired and free LLM tiers carry data-use and regional terms, so an LLM summary is optional
   and off by default (set `ANTHROPIC_API_KEY` to enable it).
+- **Suggest, never act, on other people's repos.** The "Contribution opportunities" section only
+  lists open `good first issue` / `help wanted` issues and the CONTRIBUTING link. Nothing is
+  commented, claimed or submitted automatically; automated pull requests to projects that did
+  not ask for them are spam. A failed lookup just leaves the section out.
 - **No JavaScript required.** The website is static HTML; the filters are an enhancement and the
   page works without them.
 

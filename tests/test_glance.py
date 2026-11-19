@@ -190,3 +190,51 @@ class BuildExtrasTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class OpportunityTests(unittest.TestCase):
+    TODAY = date(2026, 11, 19)
+
+    def issue(self, number, title="Fix it", updated="2026-11-10T00:00:00Z", **extra):
+        return {"number": number, "title": title, "state": "open", "updated_at": updated, "assignees": [], **extra}
+
+    def pick(self, groups, **kw):
+        return gl.pick_opportunities(groups, "a/b", self.TODAY, **kw)
+
+    def test_builds_links_from_numbers_and_orders_by_label_then_recency(self):
+        got = self.pick([("good first issue", [self.issue(2), self.issue(1)]), ("help wanted", [self.issue(3)])])
+        self.assertEqual([o["url"] for o in got], [f"https://github.com/a/b/issues/{n}" for n in (2, 1, 3)])
+        self.assertEqual(got[0]["label"], "good first issue")
+        self.assertEqual(got[0]["updated"], "9 days ago")
+
+    def test_drops_prs_locked_assigned_stale_and_duplicates(self):
+        groups = [("x", [
+            self.issue(1, pull_request={"url": "u"}), self.issue(2, locked=True),
+            self.issue(3, assignees=[{"login": "z"}]), self.issue(4, assignee={"login": "z"}),
+            self.issue(5, updated="2025-01-01T00:00:00Z"), self.issue(6, state="closed"),
+            self.issue(7), self.issue(7),
+        ])]
+        self.assertEqual([o["url"][-1] for o in self.pick(groups)], ["7"])
+
+    def test_respects_the_maximum_and_survives_junk(self):
+        groups = [("x", [self.issue(n) for n in range(1, 9)] + [None, "str", {"number": "9"}, {"number": True}])]
+        self.assertEqual(len(self.pick(groups, maximum=3)), 3)
+        self.assertEqual(self.pick([("x", None), ("y", "boom"), ("z", [{}])]), [])
+        self.assertEqual(self.pick([("x", [self.issue(1, updated="nonsense")])]), [])
+
+    def test_titles_are_untrusted_and_made_safe(self):
+        got = self.pick([("x", [self.issue(1, title="Hi @bob [click](http://evil) <b>bold</b> | `code`")])])
+        title = got[0]["title"]
+        for bad in ("@", "[", "]", "(", ")", "<", ">", "|", "http"):
+            self.assertNotIn(bad, title)
+        self.assertEqual(self.pick([("x", [self.issue(1, title="   ")])]), [])
+        self.assertLessEqual(len(gl.clean_title("word " * 100)), 93)
+
+    def test_contributing_url_accepts_only_the_repos_own_github_links(self):
+        ok = {"files": {"contributing": {"html_url": "https://github.com/a/b/blob/main/CONTRIBUTING.md"}}}
+        self.assertEqual(gl.contributing_url(ok, "a/b"), "https://github.com/a/b/blob/main/CONTRIBUTING.md")
+        for bad in (None, {}, {"files": None}, {"files": {"contributing": None}},
+                    {"files": {"contributing": {"html_url": "https://evil.example/a/b/x"}}},
+                    {"files": {"contributing": {"html_url": "https://github.com/other/repo/x"}}},
+                    {"files": {"contributing": {"html_url": "javascript:alert(1)"}}}):
+            self.assertEqual(gl.contributing_url(bad, "a/b"), "")

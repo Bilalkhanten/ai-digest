@@ -201,5 +201,7 @@ def digests_json(entries, infos, generated, areas=None):
             "latest_release": i["release"],
             "whats_new": i["whatsnew"],
             "security_advisories": i["advisories"],
+            "contribution_opportunities": i.get("opportunities", []),
+            "contributing_guide": i.get("contributing", ""),
         })
     return {"generated": generated, "count": len(records), "entries": records}

@@ -67,7 +67,7 @@ def parse_digest(text):
     info = {
         "description": "", "language": "n/a", "license": "n/a", "summary": "",
         "excerpt": "", "install": "", "release": "", "reason": "",
-        "whatsnew": "", "advisories": "",
+        "whatsnew": "", "advisories": "", "opportunities": [], "contributing": "",
     }
     m = re.search(r"^> (.+)$", text, re.M)
     if m:
@@ -87,6 +87,15 @@ def parse_digest(text):
         m = re.search(pattern, text, re.M)
         if m:
             info[key] = m.group(1).strip()
+    for m in re.finditer(
+        r"^- \[([^\]]+)\]\((https://github\.com/[^)\s]+)\) \(([^,()]+), updated ([^)]+)\)$", text, re.M
+    ):
+        info["opportunities"].append(
+            {"title": m.group(1), "url": m.group(2), "label": m.group(3), "updated": m.group(4)}
+        )
+    m = re.search(r"^Contributing guide: (https://github\.com/\S+)$", text, re.M)
+    if m:
+        info["contributing"] = m.group(1)
     m = re.search(r"^## Summary\s*\n(.*)\Z", text, re.M | re.S)
     if m:
         info["summary"] = m.group(1).strip()

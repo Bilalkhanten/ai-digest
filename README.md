@@ -105,6 +105,13 @@ one-line summary of them (count, highest severity, latest date) is shown. Both a
 stripped from the excerpt. If you add `ANTHROPIC_API_KEY`, a Claude-written 3-bullet summary
 is added on top; that part is optional.
 
+Each page can also have a **Contribution opportunities** section: up to three open issues labelled
+`good first issue` or `help wanted` (not assigned, not locked, active in the last 180 days), each
+with a link, plus the repo's CONTRIBUTING guide. The tool only lists them. It never comments,
+opens pull requests or touches anyone else's repository. If you want to work on one, pick it and
+do it yourself in your fork (or ask for help with it in a session). Titles are untrusted text and
+are cleaned before they are written.
+
 ## Configuration
 
 Settings live in `config.json`; environment variables (`MIN_STARS`, `MAX_AGE_DAYS`,
@@ -119,6 +126,8 @@ Settings live in `config.json`; environment variables (`MIN_STARS`, `MAX_AGE_DAY
 | `min_readme_chars` | 500 | skip repos with a stub README |
 | `owner_cooldown_days` | 21 | avoid picking the same owner again within this many days |
 | `release_bonus_days` / `release_check_top` | 30 / 6 | among the first N candidates, those with a release this recent go first |
+| `contribution_labels` | `good first issue`, `help wanted` | issue labels to list, best first |
+| `max_opportunities` / `opportunity_max_age_days` | 3 / 180 | how many issues to list (0 turns the section off), and how recently they were active |
 | `exclude_repos`, `exclude_owners` | empty | never pick these (`owner/name`, owner login) |
 | `exclude_name_patterns` | `^awesome`, `interview`, `roadmap` | regexes matched against the repo name |
 | `exclude_description_keywords` | curated list, awesome list, ... | skip if the description contains any |

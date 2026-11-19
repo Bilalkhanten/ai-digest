@@ -25,6 +25,9 @@ PAGE = """# acme/agent
 """
 
 
+OPPORTUNITIES = '## Contribution opportunities\n\n- [Fix typo](https://github.com/acme/agent/issues/7) (good first issue, updated 3 days ago)\n- [Add retry](https://github.com/acme/agent/issues/9) (help wanted, updated 2 months ago)\n\nContributing guide: https://github.com/acme/agent/blob/main/CONTRIBUTING.md\n\n'
+
+
 class ParseDigestTests(unittest.TestCase):
     def test_extracts_fields_and_summary(self):
         info = dl.parse_digest(PAGE)
@@ -33,9 +36,27 @@ class ParseDigestTests(unittest.TestCase):
         self.assertEqual(info["license"], "MIT")
         self.assertIn("- Does a thing", info["summary"])
 
+    def test_contribution_opportunities_are_parsed_and_stay_out_of_the_summary(self):
+        page = PAGE.replace("## Summary", OPPORTUNITIES + "## Summary")
+        info = dl.parse_digest(page)
+        self.assertEqual(
+            info["opportunities"][0],
+            {"title": "Fix typo", "url": "https://github.com/acme/agent/issues/7",
+             "label": "good first issue", "updated": "3 days ago"},
+        )
+        self.assertEqual([o["label"] for o in info["opportunities"]], ["good first issue", "help wanted"])
+        self.assertEqual(info["contributing"], "https://github.com/acme/agent/blob/main/CONTRIBUTING.md")
+        self.assertNotIn("issues/7", info["summary"])
+
+    def test_opportunity_lines_with_non_github_links_are_ignored(self):
+        info = dl.parse_digest("- [x](https://evil.example/a) (help wanted, updated 1 day ago)\n"
+                               "Contributing guide: https://evil.example/c\n")
+        self.assertEqual((info["opportunities"], info["contributing"]), ([], ""))
+
     def test_page_without_summary_or_fields_uses_defaults(self):
         info = dl.parse_digest("")
         self.assertEqual((info["language"], info["summary"]), ("n/a", ""))
+        self.assertEqual((info["opportunities"], info["contributing"]), ([], ""))
 
 
 class EntryLinkTests(unittest.TestCase):

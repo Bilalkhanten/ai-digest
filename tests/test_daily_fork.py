@@ -6,7 +6,8 @@ import sys
 import tempfile
 import unittest
 import urllib.error
-from datetime import date
+import urllib.parse
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from unittest import mock
 
@@ -52,8 +53,11 @@ LONG_README = "# Project\n" + "A useful description of the project. " * 30
 class FakeGitHub:
     """Routes df.gh() calls to canned responses and records writes."""
 
-    def __init__(self, items, readmes=None, releases=None, readme_errors=None, advisories=None):
+    def __init__(self, items, readmes=None, releases=None, readme_errors=None, advisories=None,
+                 issues=None, profiles=None):
         self.items = items
+        self.issues = issues or {}        # repo -> {label: [issue, ...]} (a string value = API error)
+        self.profiles = profiles or {}    # repo -> community profile
         self.advisories = advisories or {}
         self.readmes = readmes or {}
         self.readme_errors = readme_errors or {}
@@ -66,6 +70,18 @@ class FakeGitHub:
             return json.dumps({"login": "me", "id": 42})
         if path.startswith("/search/repositories"):
             return json.dumps({"items": self.items})
+        if "/issues?" in path:
+            name = path.split("/repos/")[1].split("/issues?")[0]
+            label = urllib.parse.parse_qs(path.split("?", 1)[1])["labels"][0]
+            found = self.issues.get(name, {}).get(label, [])
+            if isinstance(found, str):
+                raise df.ApiError(found)
+            return json.dumps(found)
+        if path.endswith("/community/profile"):
+            name = path.split("/repos/")[1].rsplit("/community/profile", 1)[0]
+            if name not in self.profiles:
+                raise df.ApiError("GET profile -> HTTP 404")
+            return json.dumps(self.profiles[name])
         if path.endswith("/readme"):
             name = path.split("/repos/")[1].rsplit("/readme", 1)[0]
             if name in self.readme_errors:
@@ -184,6 +200,56 @@ class MainTests(unittest.TestCase):
         page = next((self.root / "digest").glob("*.md")).read_text()
         self.assertIn("What's new: Faster startup; Fix crash on exit", page)
         self.assertIn("- Security advisories: 1 published (highest: critical, latest 2026-09-09)", page)
+
+    def _issue(self, number, title, days_old=3, **extra):
+        stamp = (datetime.now(timezone.utc) - timedelta(days=days_old)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        return {"number": number, "title": title, "state": "open", "updated_at": stamp, "assignees": [], **extra}
+
+    def test_page_lists_contribution_opportunities_and_the_guide(self):
+        fake = FakeGitHub(
+            [make_repo("acme/agent", stars=900)],
+            issues={"acme/agent": {
+                "good first issue": [self._issue(7, "Fix typo in [docs]"), self._issue(8, "Assigned", assignees=[{"login": "x"}])],
+                "help wanted": [self._issue(9, "Add retry"), self._issue(7, "Fix typo in [docs]")],
+            }},
+            profiles={"acme/agent": {"files": {"contributing": {
+                "html_url": "https://github.com/acme/agent/blob/main/CONTRIBUTING.md"}}}},
+        )
+        with mock.patch.object(df, "gh", fake):
+            df.main()
+        page = next((self.root / "digest").glob("*.md")).read_text()
+        self.assertIn("## Contribution opportunities", page)
+        self.assertIn("- [Fix typo in docs](https://github.com/acme/agent/issues/7) (good first issue, updated 3 days ago)", page)
+        self.assertIn("- [Add retry](https://github.com/acme/agent/issues/9) (help wanted, updated 3 days ago)", page)
+        self.assertNotIn("issues/8", page)
+        self.assertEqual(page.count("issues/7"), 1)
+        self.assertIn("Contributing guide: https://github.com/acme/agent/blob/main/CONTRIBUTING.md", page)
+
+    def test_no_issues_means_no_section_and_no_profile_lookup(self):
+        fake = FakeGitHub([make_repo("acme/agent")])
+        with mock.patch.object(df, "gh", fake):
+            df.main()
+        page = next((self.root / "digest").glob("*.md")).read_text()
+        self.assertNotIn("Contribution opportunities", page)
+        self.assertFalse([c for c in fake.calls if "community/profile" in c[1]])
+
+    def test_issue_api_errors_leave_the_section_out_without_failing(self):
+        fake = FakeGitHub(
+            [make_repo("acme/agent")],
+            issues={"acme/agent": {"good first issue": "GET issues -> HTTP 403", "help wanted": "HTTP 500"}},
+        )
+        with mock.patch.object(df, "gh", fake):
+            self.assertEqual(df.main(), 0)
+        page = next((self.root / "digest").glob("*.md")).read_text()
+        self.assertNotIn("Contribution opportunities", page)
+
+    def test_opportunities_can_be_switched_off(self):
+        fake = FakeGitHub([make_repo("acme/agent")],
+                          issues={"acme/agent": {"good first issue": [self._issue(1, "Something")]}})
+        with mock.patch.object(df, "gh", fake), mock.patch.object(df, "CONFIG", {**df.CONFIG, "max_opportunities": 0}):
+            df.main()
+        self.assertFalse([c for c in fake.calls if "/issues?" in c[1]])
+        self.assertNotIn("Contribution opportunities", next((self.root / "digest").glob("*.md")).read_text())
 
     def test_missing_advisories_and_releases_just_leave_the_lines_out(self):
         with mock.patch.object(df, "gh", FakeGitHub([make_repo("acme/agent")])):

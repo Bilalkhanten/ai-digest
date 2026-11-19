@@ -32,6 +32,9 @@ def tearDownModule():
     _GUARD["tmp"].cleanup()
 
 
+OPPORTUNITIES = '## Contribution opportunities\n\n- [Fix typo](https://github.com/acme/agent/issues/7) (good first issue, updated 3 days ago)\n- [Add retry](https://github.com/acme/agent/issues/9) (help wanted, updated 2 months ago)\n\nContributing guide: https://github.com/acme/agent/blob/main/CONTRIBUTING.md\n\n'
+
+
 class IsolationGuardTests(unittest.TestCase):
     def test_tests_never_read_the_real_digest_folder(self):
         self.assertNotEqual(bs.DIGEST_DIR, _REAL["digest"])
@@ -100,6 +103,17 @@ class BuildSiteTests(unittest.TestCase):
         self.assertIn("<code>pip install acme-agent</code>", html)
         self.assertIn("Latest release: v1.2.3 (2026-11-01)", html)
         self.assertIn("Builds &lt;agents&gt; &amp; more.", html)
+
+    def test_contribution_opportunities_are_listed_with_safe_links(self):
+        digest = self.root / "digest" / "2026-11-16.md"
+        digest.write_text(GOOD.replace("## Summary", OPPORTUNITIES + "## Summary"))
+        html = bs.render_index(STATE[:1], [], "", "")
+        self.assertIn("<a href='https://github.com/acme/agent/issues/7'>Fix typo</a>", html)
+        self.assertIn("(good first issue, updated 3 days ago)", html)
+        self.assertIn("<a href='https://github.com/acme/agent/blob/main/CONTRIBUTING.md'>Contributing guide</a>", html)
+
+    def test_pages_without_opportunities_show_no_such_block(self):
+        self.assertNotIn("Ways to contribute", (self.out / "index.html").read_text())
 
     def test_untrusted_repo_text_is_escaped(self):
         html = (self.out / "index.html").read_text()

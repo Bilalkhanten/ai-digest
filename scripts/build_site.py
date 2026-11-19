@@ -154,6 +154,17 @@ def glance_html(info):
         extras.append(f"Security advisories: {escape(info['advisories'])}")
     if extras:
         parts.append("<p class='muted'>" + " &middot; ".join(extras) + "</p>")
+    if info.get("opportunities"):
+        items = "".join(
+            f"<li><a href='{escape(o['url'])}'>{escape(o['title'])}</a> "
+            f"<span class='muted'>({escape(o['label'])}, updated {escape(o['updated'])})</span></li>"
+            for o in info["opportunities"]
+        )
+        guide = (
+            f" <a href='{escape(info['contributing'])}'>Contributing guide</a>"
+            if info.get("contributing") else ""
+        )
+        parts.append(f"<p class='muted'>Ways to contribute:{guide}</p><ul>{items}</ul>")
     return "".join(parts)
 
 

@@ -113,6 +113,16 @@ class PageAndJsonTests(unittest.TestCase):
         self.assertEqual(first["security_advisories"], "1 published (highest: high)")
         self.assertEqual(data["entries"][1]["area"], "Other")
 
+    def test_json_carries_contribution_opportunities(self):
+        infos = [dict(self.INFOS[0], opportunities=[{"title": "T", "url": "https://github.com/a/b/issues/1",
+                                                     "label": "help wanted", "updated": "1 days ago"}],
+                      contributing="https://github.com/a/b/blob/main/CONTRIBUTING.md"), self.INFOS[1]]
+        data = st.digests_json(self.ENTRIES, infos, "t")
+        self.assertEqual(data["entries"][0]["contribution_opportunities"][0]["title"], "T")
+        self.assertEqual(data["entries"][0]["contributing_guide"], "https://github.com/a/b/blob/main/CONTRIBUTING.md")
+        self.assertEqual(data["entries"][1]["contribution_opportunities"], [])
+        self.assertEqual(data["entries"][1]["contributing_guide"], "")
+
     def test_json_records(self):
         data = st.digests_json(self.ENTRIES, self.INFOS, "2026-11-16T12:00:00+00:00")
         self.assertEqual(data["count"], 2)

@@ -24,7 +24,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from digestlib import DEFAULT_AREAS, ask_claude, entry_link, parse_date
-from glance import build_extras
+from glance import build_extras, contributing_url, pick_opportunities
 
 API = "https://api.github.com"
 ROOT = Path(__file__).resolve().parent.parent
@@ -55,6 +55,9 @@ DEFAULT_CONFIG = {
     "owner_cooldown_days": 21,     # avoid picking the same owner again within this many days
     "release_bonus_days": 30,      # a release this recent moves a candidate up the queue
     "release_check_top": 6,        # only the first N candidates are checked for releases
+    "contribution_labels": ["good first issue", "help wanted"],   # issues newcomers can take, best first
+    "max_opportunities": 3,        # how many open issues to list on a digest page (0 = none)
+    "opportunity_max_age_days": 180,   # ignore issues with no activity for this long
     "exclude_repos": [],           # "owner/name"
     "exclude_owners": [],
     "exclude_name_patterns": ["^awesome", "interview", "roadmap", "cheat-?sheet"],   # regexes on the name
@@ -266,6 +269,40 @@ def fetch_advisories(repo):
     return data if isinstance(data, list) else None
 
 
+def fetch_issues(repo, label):
+    """Open issues carrying `label`, newest activity first. [] on any API error."""
+    q = urllib.parse.urlencode(
+        {"state": "open", "labels": label, "per_page": 20, "sort": "updated", "direction": "desc"}
+    )
+    try:
+        data = json.loads(gh("GET", f"/repos/{repo['full_name']}/issues?{q}"))
+    except (ApiError, ValueError):
+        return []
+    return data if isinstance(data, list) else []
+
+
+def fetch_contributing(repo):
+    """Link to the repo's CONTRIBUTING file, or ''. Any API error just means no link."""
+    try:
+        profile = json.loads(gh("GET", f"/repos/{repo['full_name']}/community/profile"))
+    except (ApiError, ValueError):
+        return ""
+    return contributing_url(profile, repo["full_name"])
+
+
+def fetch_opportunities(repo, today):
+    """{"opportunities": [...], "contributing": url} for the digest. Empty values when none."""
+    labels = CONFIG["contribution_labels"]
+    maximum = int(CONFIG["max_opportunities"])
+    if maximum <= 0 or not labels or int(repo.get("open_issues_count", 1) or 0) == 0:
+        return {"opportunities": [], "contributing": ""}
+    found = pick_opportunities(
+        [(label, fetch_issues(repo, label)) for label in labels],
+        repo["full_name"], today, maximum, int(CONFIG["opportunity_max_age_days"]),
+    )
+    return {"opportunities": found, "contributing": fetch_contributing(repo) if found else ""}
+
+
 _RELEASES = {}
 
 
@@ -387,6 +424,12 @@ def render_digest(today, topic, repo, summary, extras=None):
         lines += ["", "## At a glance", ""]
         for i, block in enumerate(glance):
             lines += ([""] if i else []) + [block]
+    if extras.get("opportunities"):
+        lines += ["", "## Contribution opportunities", ""]
+        for o in extras["opportunities"]:
+            lines.append(f"- [{o['title']}]({o['url']}) ({o['label']}, updated {o['updated']})")
+        if extras.get("contributing"):
+            lines += ["", f"Contributing guide: {extras['contributing']}"]
     if summary:
         lines += ["", "## Summary", "", summary]
     return "\n".join(lines) + "\n"
@@ -483,6 +526,7 @@ def main():
     release = release_for(repo)
     extras = build_extras(repo, readme, today_d, release, fetch_advisories(repo))
     extras["reason"] = reason_text(repo, today_d, release)
+    extras.update(fetch_opportunities(repo, today_d))
     page = render_digest(today, topic, repo, claude_summary(repo, readme), extras)
 
     if DRY_RUN:
