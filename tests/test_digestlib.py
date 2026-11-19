@@ -59,6 +59,22 @@ class ParseDigestTests(unittest.TestCase):
         self.assertEqual((info["opportunities"], info["contributing"]), ([], ""))
 
 
+class LoadLabelsTests(unittest.TestCase):
+    def test_reads_config_and_falls_back_to_defaults(self):
+        import json
+        import tempfile
+        default = ["good first issue", "help wanted"]
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "config.json"
+            self.assertEqual(dl.load_contribution_labels(path), default)           # missing file
+            for bad in ("{", json.dumps({"contribution_labels": []}),
+                        json.dumps({"contribution_labels": [1]}), json.dumps({"contribution_labels": "x"})):
+                path.write_text(bad)
+                self.assertEqual(dl.load_contribution_labels(path), default)
+            path.write_text(json.dumps({"contribution_labels": ["easy"]}))
+            self.assertEqual(dl.load_contribution_labels(path), ["easy"])
+
+
 class EntryLinkTests(unittest.TestCase):
     def test_prefers_fork_then_original(self):
         self.assertEqual(dl.entry_link({"repo": "a/b", "fork_url": "F"}), "F")

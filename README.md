@@ -112,6 +112,11 @@ opens pull requests or touches anyone else's repository. If you want to work on 
 do it yourself in your fork (or ask for help with it in a session). Titles are untrusted text and
 are cleaned before they are written.
 
+The website also has a **Contribute** page (`contribute.html`): the same kind of issues gathered
+from the 40 newest picks, grouped by repo and rebuilt on every publish, so you can find something
+to work on without waiting for a pick. Issues that were closed or assigned since are dropped on
+the next rebuild.
+
 ## Configuration
 
 Settings live in `config.json`; environment variables (`MIN_STARS`, `MAX_AGE_DAYS`,

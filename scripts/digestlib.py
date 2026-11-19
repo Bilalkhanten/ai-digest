@@ -34,6 +34,17 @@ def load_areas(path=None):
     return areas if isinstance(areas, dict) and areas else DEFAULT_AREAS
 
 
+def load_contribution_labels(path=None):
+    """Issue labels to look for, from config.json (default: good first issue, help wanted)."""
+    path = Path(path) if path else ROOT / "config.json"
+    try:
+        labels = json.loads(path.read_text()).get("contribution_labels")
+    except (OSError, ValueError):
+        labels = None
+    ok = isinstance(labels, list) and labels and all(isinstance(x, str) and x.strip() for x in labels)
+    return list(labels) if ok else ["good first issue", "help wanted"]
+
+
 def area_for(topic, areas):
     """The area a topic belongs to, or "Other"."""
     for name, topics in areas.items():

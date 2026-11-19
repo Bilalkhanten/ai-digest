@@ -94,7 +94,8 @@ change is a commit, so the history is the audit log and a same-day rerun is a no
 - **Suggest, never act, on other people's repos.** The "Contribution opportunities" section only
   lists open `good first issue` / `help wanted` issues and the CONTRIBUTING link. Nothing is
   commented, claimed or submitted automatically; automated pull requests to projects that did
-  not ask for them are spam. A failed lookup just leaves the section out.
+  not ask for them are spam. A failed lookup just leaves the section out. The site's Contribute page
+  (`board.py`) applies the same filters to the 40 newest picks, rebuilt on each publish.
 - **No JavaScript required.** The website is static HTML; the filters are an enhancement and the
   page works without them.
 

@@ -112,6 +112,20 @@ class BuildSiteTests(unittest.TestCase):
         self.assertIn("(good first issue, updated 3 days ago)", html)
         self.assertIn("<a href='https://github.com/acme/agent/blob/main/CONTRIBUTING.md'>Contributing guide</a>", html)
 
+    def test_contribute_page_and_link_only_when_a_board_is_given(self):
+        self.assertFalse((self.out / "contribute.html").exists())
+        self.assertNotIn("contribute.html", (self.out / "index.html").read_text())
+        board = [{"repo": "acme/agent", "date": "2026-11-16", "issues": [
+            {"title": "Fix typo", "url": "https://github.com/acme/agent/issues/7", "label": "help wanted",
+             "updated": "3 days ago"}]}]
+        out = bs.build(self.root / "site3", state=STATE, board=board,
+                       now=datetime(2026, 11, 17, 12, tzinfo=timezone.utc))
+        self.assertIn("Fix typo", (out / "contribute.html").read_text())
+        self.assertIn("<a href='contribute.html'>Contribute</a>", (out / "index.html").read_text())
+        empty = bs.build(self.root / "site4", state=STATE, board=[],
+                         now=datetime(2026, 11, 17, 12, tzinfo=timezone.utc))
+        self.assertIn("No open beginner-friendly issues", (empty / "contribute.html").read_text())
+
     def test_pages_without_opportunities_show_no_such_block(self):
         self.assertNotIn("Ways to contribute", (self.out / "index.html").read_text())
 

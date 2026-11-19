@@ -17,7 +17,11 @@ from html import escape
 from pathlib import Path
 from xml.sax.saxutils import escape as xml_escape
 
-from digestlib import ROOT, area_for, area_slug, entry_link, load_areas, load_state, parse_date, parse_digest
+from board import fetch_board, render_board_page
+from digestlib import (
+    ROOT, area_for, area_slug, entry_link, load_areas, load_contribution_labels, load_state, parse_date,
+    parse_digest,
+)
 from fork_inventory import fetch as fetch_repo
 from stats import digests_json, render_stats_page
 
@@ -178,7 +182,7 @@ def default_site_url():
     return ""
 
 
-def render_index(entries, weekly_files, site_url, repo_slug, areas=None, feeds=None):
+def render_index(entries, weekly_files, site_url, repo_slug, areas=None, feeds=None, show_contribute=False):
     areas = areas or load_areas()
     feeds = feeds or [("All", "feed.xml")]
     alternates = "".join(
@@ -197,7 +201,8 @@ def render_index(entries, weekly_files, site_url, repo_slug, areas=None, feeds=N
         "<p class='muted'>One popular, recently active open-source repo per day "
         "(AI, DevOps, Kubernetes, SRE and more). "
         f"RSS: {feed_links} &middot; <a href='stats.html'>Stats</a> &middot; "
-        "<a href='digests.json'>Open data</a></p>",
+        + ("<a href='contribute.html'>Contribute</a> &middot; " if show_contribute else "")
+        + "<a href='digests.json'>Open data</a></p>",
     ]
     if weekly_files and repo_slug:
         links = " &middot; ".join(
@@ -335,7 +340,7 @@ def render_weekly_feed(items, site_url, now):
     )
 
 
-def build(out_dir, state=None, now=None, stars_now=None, areas=None):
+def build(out_dir, state=None, now=None, stars_now=None, areas=None, board=None):
     state = load_state() if state is None else state
     now = now or datetime.now(timezone.utc)
     entries = sorted(state, key=lambda e: e["date"], reverse=True)
@@ -354,7 +359,8 @@ def build(out_dir, state=None, now=None, stars_now=None, areas=None):
     out.mkdir(parents=True, exist_ok=True)
     (out / "index.html").write_text(
         render_index(
-            entries[:MAX_PAGE_ENTRIES], weekly, site_url, os.getenv("GITHUB_REPOSITORY", ""), areas, feeds
+            entries[:MAX_PAGE_ENTRIES], weekly, site_url, os.getenv("GITHUB_REPOSITORY", ""), areas, feeds,
+            show_contribute=board is not None,
         ),
         encoding="utf-8",
     )
@@ -367,6 +373,10 @@ def build(out_dir, state=None, now=None, stars_now=None, areas=None):
     if weekly_feed_items:
         weekly_xml = render_weekly_feed(weekly_feed_items, site_url, now)
         (out / "feed-weekly.xml").write_text(weekly_xml, encoding="utf-8")
+    if board is not None:
+        (out / "contribute.html").write_text(
+            render_board_page(CSS, board, now.strftime("%Y-%m-%d %H:%M UTC")), encoding="utf-8"
+        )
     infos = [info_for(e) for e in entries]
     (out / "stats.html").write_text(
         render_stats_page(
@@ -384,9 +394,11 @@ def build(out_dir, state=None, now=None, stars_now=None, areas=None):
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
     state = load_state()
-    stars_now = fetch_stars(sorted(state, key=lambda e: e["date"], reverse=True))
-    out = build(argv[0] if argv else ROOT / "site", state=state, stars_now=stars_now)
-    print(f"built {out}: index.html, stats.html, feed.xml, digests.json")
+    newest = sorted(state, key=lambda e: e["date"], reverse=True)
+    stars_now = fetch_stars(newest)
+    board = fetch_board(newest, datetime.now(timezone.utc).date(), load_contribution_labels())
+    out = build(argv[0] if argv else ROOT / "site", state=state, stars_now=stars_now, board=board)
+    print(f"built {out}: index.html, stats.html, contribute.html, feed.xml, digests.json")
     return 0
 
 
