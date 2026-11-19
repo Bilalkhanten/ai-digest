@@ -19,5 +19,12 @@
     "stars": 7813,
     "topic": "diffusion",
     "fork_url": "https://github.com/Bilalkhanten/vllm-omni"
+  },
+  {
+    "date": "2026-11-19",
+    "repo": "NVIDIA/aicr",
+    "stars": 482,
+    "topic": "argocd",
+    "fork_url": "https://github.com/Bilalkhanten/aicr"
   }
 ]

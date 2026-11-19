@@ -13,6 +13,7 @@ toward your contribution graph. See [INDEX.md](INDEX.md) for the log.
 <!-- LATEST-PICKS:START -->
 | Date | Repo | Stars | Topic |
 |---|---|---|---|
+| 2026-11-19 | [NVIDIA/aicr](https://github.com/NVIDIA/aicr) | 482 | argocd |
 | 2026-11-18 | [vllm-project/vllm-omni](https://github.com/vllm-project/vllm-omni) | 7,813 | diffusion |
 | 2026-11-17 | [smol-machines/smolvm](https://github.com/smol-machines/smolvm) | 7,127 | containers |
 | 2026-11-16 | [EverMind-AI/Raven](https://github.com/EverMind-AI/Raven) | 6,225 | llm |
