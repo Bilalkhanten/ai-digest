@@ -26,5 +26,12 @@
     "stars": 482,
     "topic": "argocd",
     "fork_url": "https://github.com/Bilalkhanten/aicr"
+  },
+  {
+    "date": "2026-11-20",
+    "repo": "ClickHouse/ClickStack",
+    "stars": 10058,
+    "topic": "kubernetes",
+    "fork_url": "https://github.com/Bilalkhanten/ClickStack"
   }
 ]
