@@ -2,6 +2,13 @@
 
 [![CI](https://github.com/Bilalkhanten/ai-digest/actions/workflows/ci.yml/badge.svg)](https://github.com/Bilalkhanten/ai-digest/actions/workflows/ci.yml)
 [![Daily fork](https://github.com/Bilalkhanten/ai-digest/actions/workflows/daily-fork.yml/badge.svg)](https://github.com/Bilalkhanten/ai-digest/actions/workflows/daily-fork.yml)
+[![Copilot CI](https://github.com/Bilalkhanten/ai-digest/actions/workflows/copilot-ci.yml/badge.svg)](https://github.com/Bilalkhanten/ai-digest/actions/workflows/copilot-ci.yml)
+[![Copilot publish](https://github.com/Bilalkhanten/ai-digest/actions/workflows/copilot-publish.yml/badge.svg)](https://github.com/Bilalkhanten/ai-digest/actions/workflows/copilot-publish.yml)
+[![Data check](https://github.com/Bilalkhanten/ai-digest/actions/workflows/data-check.yml/badge.svg)](https://github.com/Bilalkhanten/ai-digest/actions/workflows/data-check.yml)
+[![Watchdog](https://github.com/Bilalkhanten/ai-digest/actions/workflows/watchdog.yml/badge.svg)](https://github.com/Bilalkhanten/ai-digest/actions/workflows/watchdog.yml)
+[![Weekly roll-up](https://github.com/Bilalkhanten/ai-digest/actions/workflows/weekly-rollup.yml/badge.svg)](https://github.com/Bilalkhanten/ai-digest/actions/workflows/weekly-rollup.yml)
+[![Token health](https://github.com/Bilalkhanten/ai-digest/actions/workflows/token-health.yml/badge.svg)](https://github.com/Bilalkhanten/ai-digest/actions/workflows/token-health.yml)
+[![Fork inventory](https://github.com/Bilalkhanten/ai-digest/actions/workflows/fork-inventory.yml/badge.svg)](https://github.com/Bilalkhanten/ai-digest/actions/workflows/fork-inventory.yml)
 
 Every day a GitHub Actions workflow picks one popular, recently active open-source repo
 (rotating topics across AI, Kubernetes, DevOps, SRE, monitoring and more), forks it into your

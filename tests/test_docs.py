@@ -47,5 +47,19 @@ class ReadmeLinksTests(unittest.TestCase):
             self.assertTrue((ROOT / target).exists(), f"README links to missing {target}")
 
 
+class BadgeTests(unittest.TestCase):
+    def test_every_workflow_badge_points_at_a_real_workflow_file(self):
+        text = (ROOT / "README.md").read_text()
+        badges = re.findall(r"actions/workflows/([\w.-]+\.yml)/badge\.svg", text)
+        self.assertTrue(badges, "README has no workflow badges")
+        for name in badges:
+            self.assertTrue((ROOT / ".github" / "workflows" / name).exists(), f"badge for missing workflow {name}")
+
+    def test_every_workflow_has_a_badge(self):
+        text = (ROOT / "README.md").read_text()
+        for wf in (ROOT / ".github" / "workflows").glob("*.yml"):
+            self.assertIn(f"workflows/{wf.name}/badge.svg", text, f"{wf.name} has no badge in the README")
+
+
 if __name__ == "__main__":
     unittest.main()
