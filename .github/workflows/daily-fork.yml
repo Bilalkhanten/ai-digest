@@ -52,7 +52,7 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
-      - name: Pick, fork and write digest
+      - name: Discover, score, fork and write the report
         id: run
         env:
           GH_TOKEN: ${{ secrets.FORK_PAT }}
@@ -60,7 +60,7 @@ jobs:
           DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
         run: python3 scripts/daily_fork.py
 
-      - name: Commit digest
+      - name: Commit the report
         id: commit
         if: steps.run.outputs.picked != ''
         env:
