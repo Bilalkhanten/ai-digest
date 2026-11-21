@@ -1,0 +1,8 @@
+{
+  "name": "@copilot/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": { "copilot": "dist/main.js" },
+  "dependencies": { "@copilot/core": "0.1.0", "@copilot/connectors": "0.1.0" }
+}

@@ -56,6 +56,7 @@ change is a commit, so the history is the audit log and a same-day rerun is a no
 | Weekly roll-up | Sundays 18:23 UTC | weekly page with topic, language and star-gain stats |
 | Data check | daily 03:41 UTC and in CI | validates the data files (`forked.json`, digest pages, index, weekly pages, config) |
 | Watchdog | daily 12:07 and 18:47 UTC | starts the daily workflow if today's digest is missing; opens an issue if there is none for 2+ days |
+| Copilot CI | pushes and PRs that touch `copilot/` | builds and tests the TypeScript incident copilot on Node 22 and 24, and replays its demo scenario. Separate from the main CI and the daily run, so it can never block the digest |
 | Token health | Mondays 06:43 UTC | checks the token's validity, scopes and expiry |
 | Fork inventory | 1st of the month | read-only report of forks made by the tool |
 

@@ -1,0 +1,30 @@
+{
+  "items": [
+    {
+      "metadata": { "uid": "11111111-aaaa" },
+      "type": "Warning", "reason": "BackOff", "count": 41,
+      "message": "Back-off restarting failed container checkout in pod checkout-7d9f6c-abcde",
+      "lastTimestamp": "2026-11-21T09:58:30Z",
+      "involvedObject": { "kind": "Pod", "name": "checkout-7d9f6c-abcde" }
+    },
+    {
+      "metadata": { "uid": "22222222-bbbb" },
+      "type": "Warning", "reason": "Unhealthy", "count": 12,
+      "message": "Readiness probe failed: Get \"http://10.0.3.7:8080/healthz\": connection refused",
+      "lastTimestamp": "2026-11-21T09:57:02Z",
+      "involvedObject": { "kind": "Pod", "name": "checkout-7d9f6c-abcde" }
+    },
+    {
+      "metadata": { "uid": "33333333-cccc" },
+      "type": "Normal", "reason": "Pulled", "message": "Container image already present",
+      "lastTimestamp": "2026-11-21T09:55:00Z",
+      "involvedObject": { "kind": "Pod", "name": "checkout-7d9f6c-abcde" }
+    },
+    {
+      "metadata": { "uid": "44444444-dddd" },
+      "type": "Warning", "reason": "Unhealthy", "message": "old event outside the window",
+      "lastTimestamp": "2026-11-20T01:00:00Z",
+      "involvedObject": { "kind": "Pod", "name": "payments-5b8d77-xyz12" }
+    }
+  ]
+}

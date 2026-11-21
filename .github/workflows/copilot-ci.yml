@@ -1,0 +1,53 @@
+name: Copilot CI
+
+# Builds and tests the incident copilot in copilot/. Separate from the main CI and from the daily
+# run, so a problem here can never block the digest.
+on:
+  push:
+    paths:
+      - "copilot/**"
+      - ".github/workflows/copilot-ci.yml"
+  pull_request:
+    paths:
+      - "copilot/**"
+      - ".github/workflows/copilot-ci.yml"
+
+permissions: {}
+
+concurrency:
+  group: copilot-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["22", "24"]
+    defaults:
+      run:
+        working-directory: copilot
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: copilot/package-lock.json
+      - name: Install (no lifecycle scripts)
+        run: npm ci --ignore-scripts
+      - name: Type-check and build
+        run: npm run build
+      - name: Unit tests
+        run: npm test
+      - name: Demo scenario still gives the expected diagnosis
+        run: |
+          out="$(node packages/cli/dist/main.js investigate --fixture examples/crashloop -n shop --now 2026-11-21T10:00:00Z)"
+          echo "$out"
+          grep -q "memory limit" <<<"$out"
+          grep -q "confidence: high" <<<"$out"

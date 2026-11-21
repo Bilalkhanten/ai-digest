@@ -1,0 +1,25 @@
+{
+  "items": [
+    {
+      "metadata": { "name": "checkout-7d9f6c-abcde" },
+      "status": {
+        "containerStatuses": [
+          {
+            "name": "checkout",
+            "restartCount": 7,
+            "state": { "waiting": { "reason": "CrashLoopBackOff", "message": "back-off 5m0s restarting failed container" } },
+            "lastState": { "terminated": { "reason": "OOMKilled", "exitCode": 137, "finishedAt": "2026-11-21T09:52:10Z" } }
+          }
+        ]
+      }
+    },
+    {
+      "metadata": { "name": "payments-5b8d77-xyz12" },
+      "status": {
+        "containerStatuses": [
+          { "name": "payments", "restartCount": 0, "state": { "running": { "startedAt": "2026-11-20T08:00:00Z" } }, "lastState": {} }
+        ]
+      }
+    }
+  ]
+}
