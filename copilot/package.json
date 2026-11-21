@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "description": "Read-only incident triage for Kubernetes and Prometheus: gathers evidence, builds a timeline, suggests likely causes.",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "engines": {
     "node": ">=22.12"
   },

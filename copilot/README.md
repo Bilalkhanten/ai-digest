@@ -87,6 +87,10 @@ npm run build     # tsc -b with project references
 CI (`.github/workflows/copilot-ci.yml`) runs the build, the tests and the demo on Node 22 and 24,
 only when something under `copilot/` changes.
 
+## License
+
+MIT, see [LICENSE](LICENSE). This covers the `copilot/` folder only.
+
 ## Roadmap
 
 Loki log excerpts, deploy correlation from GitHub, an HTTP API with an audit log, a small

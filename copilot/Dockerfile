@@ -31,7 +31,8 @@ RUN apt-get update \
 FROM node:22.23.4-slim
 LABEL org.opencontainers.image.title="incident-copilot" \
       org.opencontainers.image.description="Read-only incident triage for Kubernetes and Prometheus" \
-      org.opencontainers.image.source="https://github.com/Bilalkhanten/ai-digest"
+      org.opencontainers.image.source="https://github.com/Bilalkhanten/ai-digest" \
+      org.opencontainers.image.licenses="MIT"
 COPY --from=kubectl /usr/local/bin/kubectl /usr/local/bin/kubectl
 COPY --from=build /src/packages/cli/dist/copilot.js /app/copilot.js
 USER node

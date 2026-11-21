@@ -20,6 +20,14 @@ describe("published package metadata", () => {
     expect(cli.repository.directory).toBe("copilot/packages/cli");
   });
 
+  it("is MIT licensed and ships its license file", () => {
+    expect(cli.license).toBe("MIT");
+    expect(root.license).toBe("MIT");
+    const text = readFileSync(new URL("../LICENSE", import.meta.url), "utf8");
+    expect(text.startsWith("MIT License")).toBe(true);
+    expect(text).toContain("Bilalkhanten");
+  });
+
   it("has no runtime dependencies, because everything is bundled", () => {
     expect(cli.dependencies).toBeUndefined();
   });

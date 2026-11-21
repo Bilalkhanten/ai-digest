@@ -72,11 +72,11 @@ jobs:
       - run: npm ci --ignore-scripts
       - name: Bundle
         run: npm run bundle
-      - name: Tarball holds only the bundle, README and package.json
+      - name: Tarball holds only the bundle, license, README and package.json
         run: |
           files="$(npm pack -w @bilalkhanten/incident-copilot --dry-run --json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s)[0].files.map(f=>f.path).sort().join(",")))')"
           echo "$files"
-          test "$files" = "README.md,dist/copilot.js,package.json"
+          test "$files" = "LICENSE,README.md,dist/copilot.js,package.json"
       - name: Bundle is self-contained
         run: |
           if grep -q "@copilot/" packages/cli/dist/copilot.js; then echo "unbundled workspace import found" >&2; exit 1; fi
