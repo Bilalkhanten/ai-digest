@@ -1,11 +1,11 @@
 <div align="center">
 
-<img src="docs/banner.svg" alt="Repo digest" width="100%">
+<img src="docs/banner.svg" alt="OSS Signal Pipeline" width="100%">
 
 **[Website](https://bilalkhanten.github.io/ai-digest/)** · **[Contribute](https://bilalkhanten.github.io/ai-digest/contribute.html)** · **[Stats](https://bilalkhanten.github.io/ai-digest/stats.html)** · **[RSS](https://bilalkhanten.github.io/ai-digest/feed.xml)** · **[Index](INDEX.md)** · **[Packages](https://github.com/Bilalkhanten?tab=packages&repo_name=ai-digest)** · **[Incident copilot](copilot/)**
 
 [![CI](https://github.com/Bilalkhanten/ai-digest/actions/workflows/ci.yml/badge.svg)](https://github.com/Bilalkhanten/ai-digest/actions/workflows/ci.yml)
-[![Daily fork](https://github.com/Bilalkhanten/ai-digest/actions/workflows/daily-fork.yml/badge.svg)](https://github.com/Bilalkhanten/ai-digest/actions/workflows/daily-fork.yml)
+[![Daily pipeline run](https://github.com/Bilalkhanten/ai-digest/actions/workflows/daily-fork.yml/badge.svg)](https://github.com/Bilalkhanten/ai-digest/actions/workflows/daily-fork.yml)
 [![Copilot CI](https://github.com/Bilalkhanten/ai-digest/actions/workflows/copilot-ci.yml/badge.svg)](https://github.com/Bilalkhanten/ai-digest/actions/workflows/copilot-ci.yml)
 [![Copilot publish](https://github.com/Bilalkhanten/ai-digest/actions/workflows/copilot-publish.yml/badge.svg)](https://github.com/Bilalkhanten/ai-digest/actions/workflows/copilot-publish.yml)
 [![Data check](https://github.com/Bilalkhanten/ai-digest/actions/workflows/data-check.yml/badge.svg)](https://github.com/Bilalkhanten/ai-digest/actions/workflows/data-check.yml)
@@ -37,25 +37,28 @@
 
 </div>
 
-I built this to keep up with open source across AI, Kubernetes, DevOps, SRE and monitoring. It
-collects projects worth knowing, forks each one, and adds a short digest page: what the project is,
-how active it is, what changed in its latest release, and where a newcomer could help.
+**OSS Signal Pipeline** is a scheduled data pipeline I built to track notable open-source projects across
+AI, Kubernetes, DevOps, SRE and monitoring. It discovers candidates through the GitHub Search API,
+scores them on star velocity, push recency and release freshness, enriches each pick with README
+facts, release notes, security advisories and open contribution opportunities, and publishes the
+results as Markdown in git, a static site with RSS feeds, and open JSON data.
 [INDEX.md](INDEX.md) is the running log.
 
 ## Highlights
 
-- **One repo a day.** A popular, recently active project from AI, Kubernetes, DevOps, SRE, Docker or monitoring, forked and written up.
-- **Digest pages.** Facts, a README excerpt, release notes, security advisories, and beginner-friendly issues to pick up.
-- **A website.** Filterable and searchable, with RSS feeds, a stats page, a Contribute page and open data.
-- **Reliability built in.** Tests gate every run, a watchdog catches skipped schedules, and a failure opens one issue that closes itself.
-- **An incident copilot.** [`copilot/`](copilot/) is a read-only Kubernetes and Prometheus triage tool in TypeScript, published as an npm package and a container image. It has its own CI and never affects the daily digest.
+- **Discovery and scoring.** Rotating topics are searched through the GitHub Search API. Candidates are weighted by star velocity, push recency and release freshness, with an owner cooldown and weighted randomness so the output stays varied.
+- **Enrichment.** README excerpt, install command and sections, release notes, security advisories and open beginner-friendly issues. Rule-based, standard-library Python; all third-party text is treated as untrusted and sanitised.
+- **Publishing.** Git is the datastore (`forked.json` plus Markdown reports). A static site adds filters, search, per-area RSS feeds, stats, a Contribute page and open JSON data. Each selected project is also forked with a least-privilege token.
+- **Reliability engineering.** Test-gated runs, idempotent scheduling with backup slots, a watchdog that repairs skipped runs, a nightly data-validation job, self-closing alert issues and token-expiry monitoring.
+- **Supply-chain hygiene.** Least-privilege permissions per job, SHA-pinned actions, and a sole-author check in CI.
+- **An incident copilot.** [`copilot/`](copilot/) is a read-only Kubernetes and Prometheus triage tool in TypeScript, published as an npm package and a container image. It has its own CI and never affects the pipeline's runs.
 
 ## Pipeline
 
 | Workflow | Trigger | What it does |
 |---|---|---|
 | **CI** (`ci.yml`) | every push, PRs to `main` | offline tests on Python 3.10 to 3.13, `ruff`, `shellcheck`, `actionlint`, and a sole-author check (only the identities in `.github/allowed-authors.txt`, no `Co-authored-by`) |
-| **Daily repo fork** (`daily-fork.yml`) | 07:17 UTC daily, with backup slots at 13:43 and 19:29 UTC, manual | `verify` (tests) gates `fork` (pick, fork, commit digest). On failure it opens one issue; the next success closes it |
+| **Daily pipeline run** (`daily-fork.yml`) | 07:17 UTC daily, with backup slots at 13:43 and 19:29 UTC, manual | `verify` (tests) gates `fork` (discover, score, fork, commit the report). On failure it opens one issue; the next success closes it |
 | **Copilot CI** (`copilot-ci.yml`) | pushes and PRs that touch `copilot/` | builds and tests the TypeScript incident copilot on Node 22 and 24, and replays its demo. Independent of the daily run |
 | **Copilot publish** (`copilot-publish.yml`) | a `copilot-vX.Y.Z` tag; manual run is a dry run | publishes the incident copilot as an npm package and a container image on GitHub Packages. Never runs on normal pushes |
 | **Token health** (`token-health.yml`) | Mondays 06:43 UTC, manual | checks `FORK_PAT` is valid, has only `public_repo`, and is not within 14 days of expiry; opens an issue if not |
@@ -66,10 +69,9 @@ how active it is, what changed in its latest release, and where a newcomer could
 | **Publish site** (job in `daily-fork.yml`) | after each real run, if enabled | builds a small website and RSS feed from the digests. Off by default, see below |
 | **Dependabot** | monthly | keeps the GitHub Actions versions current. Actions are pinned to commit SHAs |
 
-After a real run pushes a digest commit, the `notify` job @mentions you on a single
-running issue, "Daily digest log". GitHub emails you for that mention (and pushes to the
-GitHub mobile app). Failures and token problems @mention you too. This confirms the
-commit was pushed; the contribution graph itself can lag behind. For emails, check
+After a real run pushes its commit, the `notify` job @mentions you on a single
+running issue, "Pipeline run log". GitHub emails you for that mention (and pushes to the
+GitHub mobile app). Failures and token problems @mention you too. For emails, check
 Settings > Notifications > "Participating, @mentions and custom" has Email ticked. To
 stop them, mute the issue or delete the `notify` job.
 
@@ -89,21 +91,18 @@ The API client retries transient errors (429, 5xx, network) up to 3 times.
      Claude-written summary in each digest. Without it the digest still lists the
      repo's metadata. This is API usage, billed separately from a claude.ai plan;
      one small summary a day costs very little.
-4. **Test it**: Actions tab > "Daily repo fork" > Run workflow, and tick
+4. **Test it**: Actions tab > "Daily pipeline run" > Run workflow, and tick
    `dry_run`. The log shows the repo it would pick. Then run it again with
    `dry_run` unticked to fork and commit for real.
-5. **Check your profile** after a run. The contribution graph can lag, and dates
-   are in UTC.
+5. **Check the result** after a run: the job summary, the new page under `digest/`, and
+   the website if you enabled it. Dates are in UTC.
 
 ## Notes
 
-- The commit author is set to your GitHub noreply address (`ID+login@users.noreply.github.com`),
-  which is what lets the commit count toward your graph.
-- The graph counts commits to a repo's default branch made with an email linked to
-  your account. Forks are not a documented contribution type, so don't rely on them
-  to add squares; commits made inside a fork do not count either.
+- Commits are authored with your GitHub noreply address (`ID+login@users.noreply.github.com`),
+  so they are attributed to your account without exposing an email address.
 - GitHub disables scheduled workflows in a public repo after 60 days without
-  repo activity. The daily digest commit should keep it active; check the
+  repo activity. The daily commit should keep it active; check the
   Actions tab now and then.
 - Tuning (environment variables in the workflow): `MIN_STARS` (default 100),
   `MAX_AGE_DAYS` (default 30), `CLAUDE_MODEL`.
@@ -112,7 +111,7 @@ The API client retries transient errors (429, 5xx, network) up to 3 times.
 - Revoke the token if you stop using this. To renew it, regenerate it and update the
   `FORK_PAT` secret; the Token health workflow warns you 14 days ahead.
 
-## What each digest page contains
+## What each report contains
 
 Every page is built from the repo's own data, with no API key and no cost: name, description,
 stars, language, license, last push, topics, age, forks, open issues and the latest release,

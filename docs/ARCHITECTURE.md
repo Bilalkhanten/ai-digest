@@ -18,7 +18,7 @@ flowchart TD
         S4 --> S5["commit and push to main"]
     end
     F -->|fail| A
-    F --> N["notify: @mention on the digest log issue"]
+    F --> N["notify: @mention on the run log issue"]
     F --> P["optional: build site and RSS, publish to Pages"]
     OK(["next successful run"]) -.->|closes| A
 ```
@@ -52,7 +52,7 @@ change is a commit, so the history is the audit log and a same-day rerun is a no
 | Workflow | When | Job |
 |---|---|---|
 | CI | every push and PR | tests on Python 3.10 to 3.13, ruff, shellcheck, actionlint, and a sole-author check |
-| Daily repo fork | 07:17, 13:43 and 19:29 UTC | tests gate the fork; pick, fork, commit; notify; optional site publish. Extra slots are backups: a run does nothing if today's digest exists |
+| Daily pipeline run | 07:17, 13:43 and 19:29 UTC | tests gate the fork; pick, fork, commit; notify; optional site publish. Extra slots are backups: a run does nothing if today's digest exists |
 | Weekly roll-up | Sundays 18:23 UTC | weekly page with topic, language and star-gain stats |
 | Data check | daily 03:41 UTC and in CI | validates the data files (`forked.json`, digest pages, index, weekly pages, config) |
 | Watchdog | daily 12:07 and 18:47 UTC | starts the daily workflow if today's digest is missing; opens an issue if there is none for 2+ days |
@@ -116,7 +116,7 @@ change is a commit, so the history is the audit log and a same-day rerun is a no
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| Issue "Daily repo fork failed" | expired or revoked token, GitHub outage, or a failing test | open the linked run; regenerate `FORK_PAT` if it is a 401 |
+| Issue "Daily pipeline run failed" | expired or revoked token, GitHub outage, or a failing test | open the linked run; regenerate `FORK_PAT` if it is a 401 |
 | Issue "FORK_PAT token needs attention" | token expiring within 14 days, or has extra scopes | regenerate with `public_repo` only and update the secret |
-| Issue "Daily digest is overdue" | the schedule was skipped and the repair did not help, or the run keeps failing | check the Actions tab; run "Daily repo fork" manually |
+| Issue "Pipeline output is overdue" | the schedule was skipped and the repair did not help, or the run keeps failing | check the Actions tab; run "Daily pipeline run" manually |
 | No notification | notifications off for the app | Settings > Notifications, enable mentions |

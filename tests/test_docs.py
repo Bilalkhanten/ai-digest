@@ -35,7 +35,7 @@ class MermaidTests(unittest.TestCase):
     def test_every_workflow_file_is_documented(self):
         text = (ROOT / "docs" / "ARCHITECTURE.md").read_text().lower()
         for wf in (ROOT / ".github" / "workflows").glob("*.yml"):
-            name = {"ci": "ci", "daily-fork": "daily repo fork", "weekly-rollup": "weekly roll-up",
+            name = {"ci": "ci", "daily-fork": "daily pipeline run", "weekly-rollup": "weekly roll-up",
                     "watchdog": "watchdog", "data-check": "data check", "token-health": "token health", "fork-inventory": "fork inventory", "copilot-ci": "copilot ci", "copilot-publish": "copilot publish"}[wf.stem]
             self.assertIn(name, text, f"{wf.name} is not described in ARCHITECTURE.md")
 

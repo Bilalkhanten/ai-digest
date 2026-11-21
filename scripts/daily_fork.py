@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pick a popular, recently active open-source repo (AI, DevOps, Kubernetes...), fork it, write a digest.
+"""Discover and score open-source projects (AI, DevOps, Kubernetes...), fork the top pick, write its report.
 
 Standard library only. Settings live in config.json (all optional); environment
 variables override them. Environment variables:
@@ -23,7 +23,7 @@ import urllib.request
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from digestlib import DEFAULT_AREAS, ask_claude, entry_link, parse_date
+from digestlib import DEFAULT_AREAS, PROJECT_NAME, ask_claude, entry_link, parse_date
 from glance import build_extras, contributing_url, pick_opportunities
 
 API = "https://api.github.com"
@@ -442,8 +442,8 @@ def render_digest(today, topic, repo, summary, extras=None):
 
 
 def render_index(state):
-    rows = ["# Repo digest", "",
-            "A log of open-source projects worth knowing (AI, DevOps, Kubernetes, SRE...).", "",
+    rows = [f"# {PROJECT_NAME}: index", "",
+            "Every project the pipeline has processed, newest first (AI, DevOps, Kubernetes, SRE...).", "",
             "| Date | Repo | Stars | Topic | Forked | Notes |", "|---|---|---|---|---|---|"]
     for e in sorted(state, key=lambda x: x["date"], reverse=True):
         forked = "yes" if e.get("fork_url") else "no"

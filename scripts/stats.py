@@ -9,7 +9,7 @@ from collections import Counter
 from datetime import timedelta
 from html import escape
 
-from digestlib import area_for, entry_link, load_areas
+from digestlib import PROJECT_NAME, area_for, entry_link, load_areas
 
 STATS_CSS = """
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(8rem,1fr));gap:.75rem}
@@ -164,9 +164,9 @@ def render_stats_page(css, entries, infos, stars_now, today, generated_label, ar
     return (
         "<!doctype html><html lang='en'><head><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-        "<title>Repo digest: stats</title>"
+        f"<title>{escape(PROJECT_NAME)}: stats</title>"
         f"<style>{css}{STATS_CSS}</style></head><body><main>"
-        "<h1>Stats</h1><p class='muted'><a href='index.html'>Back to the digest</a> &middot; "
+        "<h1>Stats</h1><p class='muted'><a href='index.html'>Back to the index</a> &middot; "
         f"<a href='digests.json'>digests.json</a> (open data) &middot; built {escape(generated_label)}</p>"
         f"<div class='tiles'>{tile_html}</div>"
         "<h2 style='margin-top:1.5rem'>Picks per week (last 12 weeks)</h2>"

@@ -1,6 +1,6 @@
-# Repo digest
+# OSS Signal Pipeline: index
 
-A log of open-source projects worth knowing (AI, DevOps, Kubernetes, SRE...).
+Every project the pipeline has processed, newest first (AI, DevOps, Kubernetes, SRE...).
 
 | Date | Repo | Stars | Topic | Forked | Notes |
 |---|---|---|---|---|---|

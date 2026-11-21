@@ -14,7 +14,7 @@ on:
 permissions: {}
 
 env:
-  ALERT_TITLE: "Daily digest is overdue"
+  ALERT_TITLE: "Pipeline output is overdue"
 
 jobs:
   check:
@@ -54,7 +54,7 @@ jobs:
           OWNER: ${{ github.repository_owner }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          ./scripts/alert_issue.sh open "$ALERT_TITLE" "@$OWNER No new digest for 2+ days: $RUN_URL"
+          ./scripts/alert_issue.sh open "$ALERT_TITLE" "@$OWNER No new pipeline output for 2+ days: $RUN_URL"
 
       - name: Close issue if digests are flowing again
         if: success()
@@ -63,4 +63,4 @@ jobs:
           GH_REPO: ${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          ./scripts/alert_issue.sh close "$ALERT_TITLE" "Resolved: digests are arriving again ($RUN_URL)."
+          ./scripts/alert_issue.sh close "$ALERT_TITLE" "Resolved: pipeline output is arriving again ($RUN_URL)."

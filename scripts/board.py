@@ -62,7 +62,7 @@ def render_board_page(css, board, generated_label):
         "<p class='muted'>Open <code>good first issue</code> and <code>help wanted</code> issues in "
         "repos featured in the digest. Unassigned and recently active when this page was built "
         f"({escape(generated_label)}). Always read the project's contributing guide first, and "
-        "check an issue is still open before starting. <a href='index.html'>Back to the digest</a></p>",
+        "check an issue is still open before starting. <a href='index.html'>Back to the index</a></p>",
     ]
     if not board:
         parts.append("<p>No open beginner-friendly issues found right now. Check back later.</p>")

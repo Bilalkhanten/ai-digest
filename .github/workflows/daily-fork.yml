@@ -1,4 +1,4 @@
-name: Daily repo fork
+name: Daily pipeline run
 
 on:
   schedule:
@@ -20,7 +20,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  ALERT_TITLE: "Daily repo fork failed"
+  ALERT_TITLE: "Daily pipeline run failed"
 
 jobs:
   # Deploy gate: nothing is forked or committed unless the tests pass.
@@ -39,7 +39,7 @@ jobs:
         run: python3 -m unittest discover -s tests
 
   fork:
-    name: Pick, fork and commit digest
+    name: Discover, score, fork and commit
     needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -79,7 +79,7 @@ jobs:
   # Success notice: an @mention on one running issue emails you (and pushes to the
   # GitHub mobile app). Only runs when a real commit was pushed, not on dry runs.
   notify:
-    name: Notify contribution added
+    name: Notify run complete
     needs: fork
     if: needs.fork.outputs.picked != ''
     runs-on: ubuntu-latest
@@ -89,7 +89,7 @@ jobs:
       issues: write
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-      - name: Post to the digest log issue
+      - name: Post to the run log issue
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -99,13 +99,13 @@ jobs:
           COMMIT_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ needs.fork.outputs.sha }}
         run: |
           fork="${FORK_URL:-none today (digest only)}"
-          ./scripts/alert_issue.sh open "Daily digest log" \
-            "@$OWNER Contribution added: digest for **$PICKED**.
+          ./scripts/alert_issue.sh open "Pipeline run log" \
+            "@$OWNER Pipeline run complete: processed **$PICKED**.
 
           - Commit: $COMMIT_URL
           - Fork: $fork
 
-          The commit is pushed; the contribution graph can take a while to show it."
+          The report is committed to the repository."
 
   # Optional: publish the digest as a small website with an RSS feed. Off until you enable
   # GitHub Pages (Settings > Pages > Source: GitHub Actions) and set the repository

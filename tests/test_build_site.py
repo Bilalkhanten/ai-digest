@@ -296,7 +296,7 @@ class PerAreaFeedTests(unittest.TestCase):
         self.assertEqual(sorted(titles("feed-platform.xml")), ["a/k1", "b/k2"])
         self.assertEqual(titles("feed-ai.xml"), ["c/l1"])
         self.assertEqual(len(titles("feed.xml")), 3)
-        self.assertEqual(ET.fromstring((out / "feed-ai.xml").read_text()).findtext("./channel/title"), "Repo digest: AI")
+        self.assertEqual(ET.fromstring((out / "feed-ai.xml").read_text()).findtext("./channel/title"), "OSS Signal Pipeline: AI")
 
     def test_single_area_site_writes_only_the_combined_feed(self):
         only_ai = [e for e in self.entries() if e["topic"] == "llm"]
@@ -388,7 +388,7 @@ class WeeklyFeedTests(unittest.TestCase):
         (self.weekly / "2026-W47.md").write_text(WEEKLY_PAGE)
         xml = bs.render_weekly_feed(self.items(), "https://me.github.io/ai-digest/", self.now)
         root = ET.fromstring(xml)
-        self.assertEqual(root.findtext("./channel/title"), "Repo digest: weekly roll-ups")
+        self.assertEqual(root.findtext("./channel/title"), "OSS Signal Pipeline: weekly roll-ups")
         description = root.findtext("./channel/item/description")
         self.assertIn("<script>alert(1)</script>", description)     # preserved as TEXT after XML unescaping
         self.assertNotIn("<script>", xml)                              # but never as markup in the XML itself
@@ -400,7 +400,7 @@ class WeeklyFeedTests(unittest.TestCase):
         self.assertTrue((out / "feed-weekly.xml").exists())
         html = (out / "index.html").read_text()
         self.assertIn("<a href='feed-weekly.xml'>Weekly</a>", html)
-        self.assertIn("title='Repo digest: Weekly'", html)
+        self.assertIn("title='OSS Signal Pipeline: Weekly'", html)
 
     def test_no_weekly_pages_means_no_weekly_feed(self):
         out = bs.build(self.root / "site", state=TopicFilterTests.ENTRIES[:2], now=self.now)

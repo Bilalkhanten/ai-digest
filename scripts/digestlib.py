@@ -7,6 +7,7 @@ import urllib.request
 from datetime import date
 from pathlib import Path
 
+PROJECT_NAME = "OSS Signal Pipeline"
 ROOT = Path(__file__).resolve().parent.parent
 
 # Topic areas used by the website filters and per-area feeds (overridable in config.json).

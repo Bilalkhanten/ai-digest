@@ -19,8 +19,8 @@ from xml.sax.saxutils import escape as xml_escape
 
 from board import fetch_board, render_board_page
 from digestlib import (
-    ROOT, area_for, area_slug, entry_link, load_areas, load_contribution_labels, load_state, parse_date,
-    parse_digest,
+    PROJECT_NAME, ROOT, area_for, area_slug, entry_link, load_areas, load_contribution_labels, load_state,
+    parse_date, parse_digest,
 )
 from fork_inventory import fetch as fetch_repo
 from stats import digests_json, render_stats_page
@@ -195,7 +195,7 @@ def render_index(entries, weekly_files, site_url, repo_slug, areas=None, feeds=N
     areas = areas or load_areas()
     feeds = feeds or [("All", "feed.xml")]
     alternates = "".join(
-        f"<link rel='alternate' type='application/rss+xml' title='Repo digest: {escape(label)}' "
+        f"<link rel='alternate' type='application/rss+xml' title='{escape(PROJECT_NAME)}: {escape(label)}' "
         f"href='{escape(file)}'>"
         for label, file in feeds
     )
@@ -203,11 +203,11 @@ def render_index(entries, weekly_files, site_url, repo_slug, areas=None, feeds=N
     parts = [
         "<!doctype html><html lang='en'><head><meta charset='utf-8'>",
         "<meta name='viewport' content='width=device-width,initial-scale=1'>",
-        "<title>Repo digest</title>",
+        f"<title>{escape(PROJECT_NAME)}</title>",
         alternates,
         f"<style>{CSS}</style></head><body><main>",
-        "<h1>Repo digest</h1>",
-        "<p class='muted'>Open-source projects worth knowing "
+        f"<h1>{escape(PROJECT_NAME)}</h1>",
+        "<p class='muted'>Open-source projects scored on momentum "
         "(AI, DevOps, Kubernetes, SRE and more). "
         f"RSS: {feed_links} &middot; <a href='stats.html'>Stats</a> &middot; "
         + ("<a href='contribute.html'>Contribute</a> &middot; " if show_contribute else "")
@@ -237,7 +237,7 @@ def render_index(entries, weekly_files, site_url, repo_slug, areas=None, feeds=N
     return "\n".join(parts)
 
 
-def render_feed(entries, site_url, now, title="Repo digest"):
+def render_feed(entries, site_url, now, title=PROJECT_NAME):
     items = []
     for e in entries:
         info = info_for(e)
@@ -260,7 +260,7 @@ def render_feed(entries, site_url, now, title="Repo digest"):
         "<?xml version='1.0' encoding='UTF-8'?><rss version='2.0'><channel>"
         f"<title>{xml_escape(title)}</title>"
         f"<link>{xml_escape(site_url or 'https://github.com')}</link>"
-        "<description>Open-source projects worth knowing, "
+        "<description>Open-source projects scored on momentum, "
         "across AI, DevOps, Kubernetes, SRE and more.</description>"
         f"<lastBuildDate>{format_datetime(now)}</lastBuildDate>"
         + "".join(items)
@@ -343,9 +343,9 @@ def render_weekly_feed(items, site_url, now):
     )
     return (
         "<?xml version='1.0' encoding='UTF-8'?><rss version='2.0'><channel>"
-        "<title>Repo digest: weekly roll-ups</title>"
+        f"<title>{xml_escape(PROJECT_NAME)}: weekly roll-ups</title>"
         f"<link>{xml_escape(site_url or 'https://github.com')}</link>"
-        "<description>One summary per week of the repos featured in the digest.</description>"
+        "<description>One summary per week of the projects the pipeline processed.</description>"
         f"<lastBuildDate>{format_datetime(now)}</lastBuildDate>{body}</channel></rss>"
     )
 
@@ -379,7 +379,7 @@ def build(out_dir, state=None, now=None, stars_now=None, areas=None, board=None)
         if file == "feed-weekly.xml":
             continue
         mine = [e for e in entries if area_for(e["topic"], areas) == name][:MAX_FEED_ENTRIES]
-        (out / file).write_text(render_feed(mine, site_url, now, f"Repo digest: {name}"), encoding="utf-8")
+        (out / file).write_text(render_feed(mine, site_url, now, f"{PROJECT_NAME}: {name}"), encoding="utf-8")
     if weekly_feed_items:
         weekly_xml = render_weekly_feed(weekly_feed_items, site_url, now)
         (out / "feed-weekly.xml").write_text(weekly_xml, encoding="utf-8")
