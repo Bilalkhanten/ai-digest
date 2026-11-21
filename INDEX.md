@@ -1,6 +1,6 @@
 # Repo digest
 
-One popular open-source repo per day (AI, DevOps, Kubernetes, SRE...).
+A log of open-source projects worth knowing (AI, DevOps, Kubernetes, SRE...).
 
 | Date | Repo | Stars | Topic | Forked | Notes |
 |---|---|---|---|---|---|

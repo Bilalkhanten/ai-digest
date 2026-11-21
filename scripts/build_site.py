@@ -207,7 +207,7 @@ def render_index(entries, weekly_files, site_url, repo_slug, areas=None, feeds=N
         alternates,
         f"<style>{CSS}</style></head><body><main>",
         "<h1>Repo digest</h1>",
-        "<p class='muted'>One popular, recently active open-source repo per day "
+        "<p class='muted'>Open-source projects worth knowing "
         "(AI, DevOps, Kubernetes, SRE and more). "
         f"RSS: {feed_links} &middot; <a href='stats.html'>Stats</a> &middot; "
         + ("<a href='contribute.html'>Contribute</a> &middot; " if show_contribute else "")
@@ -260,7 +260,8 @@ def render_feed(entries, site_url, now, title="Repo digest"):
         "<?xml version='1.0' encoding='UTF-8'?><rss version='2.0'><channel>"
         f"<title>{xml_escape(title)}</title>"
         f"<link>{xml_escape(site_url or 'https://github.com')}</link>"
-        "<description>One popular, recently active open-source repo per day.</description>"
+        "<description>Open-source projects worth knowing, "
+        "across AI, DevOps, Kubernetes, SRE and more.</description>"
         f"<lastBuildDate>{format_datetime(now)}</lastBuildDate>"
         + "".join(items)
         + "</channel></rss>"

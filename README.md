@@ -37,9 +37,9 @@
 
 </div>
 
-I built this to keep up with open source across AI, Kubernetes, DevOps, SRE and monitoring. Each day
-it picks one popular, recently active repo, forks it, and adds a short digest page: what the project
-is, how active it is, what changed in its latest release, and where a newcomer could help.
+I built this to keep up with open source across AI, Kubernetes, DevOps, SRE and monitoring. It
+collects projects worth knowing, forks each one, and adds a short digest page: what the project is,
+how active it is, what changed in its latest release, and where a newcomer could help.
 [INDEX.md](INDEX.md) is the running log.
 
 ## Highlights

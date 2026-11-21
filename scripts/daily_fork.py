@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pick one popular, recently active open-source repo (AI, DevOps, Kubernetes...), fork it, write a digest.
+"""Pick a popular, recently active open-source repo (AI, DevOps, Kubernetes...), fork it, write a digest.
 
 Standard library only. Settings live in config.json (all optional); environment
 variables override them. Environment variables:
@@ -442,7 +442,8 @@ def render_digest(today, topic, repo, summary, extras=None):
 
 
 def render_index(state):
-    rows = ["# Repo digest", "", "One popular open-source repo per day (AI, DevOps, Kubernetes, SRE...).", "",
+    rows = ["# Repo digest", "",
+            "A log of open-source projects worth knowing (AI, DevOps, Kubernetes, SRE...).", "",
             "| Date | Repo | Stars | Topic | Forked | Notes |", "|---|---|---|---|---|---|"]
     for e in sorted(state, key=lambda x: x["date"], reverse=True):
         forked = "yes" if e.get("fork_url") else "no"
