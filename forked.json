@@ -33,5 +33,12 @@
     "stars": 10058,
     "topic": "kubernetes",
     "fork_url": "https://github.com/Bilalkhanten/ClickStack"
+  },
+  {
+    "date": "2026-11-21",
+    "repo": "onyx-dot-app/onyx",
+    "stars": 33490,
+    "topic": "llm",
+    "fork_url": "https://github.com/Bilalkhanten/onyx"
   }
 ]

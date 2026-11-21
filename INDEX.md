@@ -4,6 +4,7 @@ One popular open-source repo per day (AI, DevOps, Kubernetes, SRE...).
 
 | Date | Repo | Stars | Topic | Forked | Notes |
 |---|---|---|---|---|---|
+| 2026-11-21 | [onyx-dot-app/onyx](https://github.com/Bilalkhanten/onyx) | 33,490 | llm | yes | [digest](digest/2026-11-21.md) |
 | 2026-11-20 | [ClickHouse/ClickStack](https://github.com/Bilalkhanten/ClickStack) | 10,058 | kubernetes | yes | [digest](digest/2026-11-20.md) |
 | 2026-11-19 | [NVIDIA/aicr](https://github.com/Bilalkhanten/aicr) | 482 | argocd | yes | [digest](digest/2026-11-19.md) |
 | 2026-11-18 | [vllm-project/vllm-omni](https://github.com/Bilalkhanten/vllm-omni) | 7,813 | diffusion | yes | [digest](digest/2026-11-18.md) |
