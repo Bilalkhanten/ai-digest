@@ -32,8 +32,6 @@ STATE_FILE = ROOT / "forked.json"
 DIGEST_DIR = ROOT / "digest"
 INDEX_FILE = ROOT / "INDEX.md"
 CONFIG_FILE = ROOT / "config.json"
-README_FILE = ROOT / "README.md"
-LATEST_START, LATEST_END = "<!-- LATEST-PICKS:START -->", "<!-- LATEST-PICKS:END -->"
 
 DEFAULT_CONFIG = {
     # Rotated by day of year; AI and platform topics are interleaved so the feed alternates.
@@ -455,36 +453,6 @@ def render_index(state):
     return "\n".join(rows) + "\n"
 
 
-def render_latest_block(state, n=7):
-    """Markdown table of the newest picks for the README."""
-    rows = ["| Date | Repo | Stars | Topic |", "|---|---|---|---|"]
-    for e in sorted(state, key=lambda x: x["date"], reverse=True)[:n]:
-        rows.append(
-            f"| {e['date']} | [{e['repo']}](https://github.com/{e['repo']}) | {e['stars']:,} | {e['topic']} |"
-        )
-    return "\n".join(rows)
-
-
-def replace_block(text, block):
-    """Swap the text between the LATEST-PICKS markers. No markers = no change."""
-    a, b = text.find(LATEST_START), text.find(LATEST_END)
-    if a == -1 or b == -1 or b < a:
-        return text
-    return text[: a + len(LATEST_START)] + "\n" + block + "\n" + text[b:]
-
-
-def update_readme(state):
-    """Refresh the latest-picks block in README.md. Returns True if the file changed."""
-    if not README_FILE.exists():
-        return False
-    old = README_FILE.read_text(encoding="utf-8")
-    new = replace_block(old, render_latest_block(state))
-    if new == old:
-        return False
-    README_FILE.write_text(new, encoding="utf-8")
-    return True
-
-
 def set_outputs(**kv):
     path = os.getenv("GITHUB_OUTPUT")
     if path:
@@ -568,7 +536,6 @@ def main():
     digest_path.write_text(page, encoding="utf-8")
     STATE_FILE.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
     INDEX_FILE.write_text(render_index(state), encoding="utf-8")
-    update_readme(state)
 
     outcome = f"- Fork: {fork_url}" if fork_url else "- Fork: none today (digest only)"
     write_summary(

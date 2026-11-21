@@ -14,7 +14,7 @@ flowchart TD
     subgraph F["fork job"]
         S1["search GitHub by rotating topic"] --> S2["filter, score, README check"]
         S2 --> S3["fork with FORK_PAT"]
-        S3 --> S4["write digest page, INDEX, README block"]
+        S3 --> S4["write digest page and INDEX"]
         S4 --> S5["commit and push to main"]
     end
     F -->|fail| A
@@ -54,7 +54,7 @@ change is a commit, so the history is the audit log and a same-day rerun is a no
 | CI | every push and PR | tests on Python 3.10 to 3.13, ruff, shellcheck, actionlint, and a sole-author check |
 | Daily repo fork | 07:17, 13:43 and 19:29 UTC | tests gate the fork; pick, fork, commit; notify; optional site publish. Extra slots are backups: a run does nothing if today's digest exists |
 | Weekly roll-up | Sundays 18:23 UTC | weekly page with topic, language and star-gain stats |
-| Data check | daily 03:41 UTC and in CI | validates the data files (`forked.json`, digest pages, index, README block, weekly pages, config) |
+| Data check | daily 03:41 UTC and in CI | validates the data files (`forked.json`, digest pages, index, weekly pages, config) |
 | Watchdog | daily 12:07 and 18:47 UTC | starts the daily workflow if today's digest is missing; opens an issue if there is none for 2+ days |
 | Token health | Mondays 06:43 UTC | checks the token's validity, scopes and expiry |
 | Fork inventory | 1st of the month | read-only report of forks made by the tool |
@@ -78,7 +78,7 @@ change is a commit, so the history is the audit log and a same-day rerun is a no
   token is a classic PAT with only `public_repo`, and its expiry is monitored.
 - **The data is checked, not trusted.** Git is the database, so a bad write would be permanent
   history. A nightly job (and CI) verifies the entries, that each has a matching digest page,
-  that the index and README block agree with them, and that the config is coherent. It checks
+  that the index agrees with them, and that the config is coherent. It checks
   structure, not exact text, so changing a template never makes it fail.
 - **One contributor, enforced.** CI fails if a new commit has an author or committer outside
   `.github/allowed-authors.txt`, or a `Co-authored-by` line for anyone else. It is a separate job,

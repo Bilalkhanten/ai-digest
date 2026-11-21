@@ -70,7 +70,7 @@ jobs:
         run: |
           git config user.name "$COMMIT_NAME"
           git config user.email "$COMMIT_EMAIL"
-          git add digest forked.json INDEX.md README.md
+          git add digest forked.json INDEX.md
           git commit -m "digest: $PICKED"
           git pull --rebase origin "$GITHUB_REF_NAME"
           git push

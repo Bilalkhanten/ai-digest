@@ -44,8 +44,6 @@ class Tree(unittest.TestCase):
             return "\n".join(f"| {e['date']} | [{e['repo']}](x) | 1 | llm |" for e in items)
 
         (self.root / "INDEX.md").write_text("# Index\n\n| Date | Repo |\n|---|---|\n" + rows(newest) + "\n")
-        block = "| Date | Repo | Stars | Topic |\n|---|---|---|---|\n" + rows(newest[: dc.LATEST_COUNT])
-        (self.root / "README.md").write_text(f"# R\n\n{dc.LATEST_START}\n{block}\n{dc.LATEST_END}\n")
         (self.root / "digest" / "weekly" / "2026-W47.md").write_text("# Week 2026-W47\n\nbody\n")
         (self.root / "config.json").write_text(json.dumps({
             "topics": ["llm", "rag", "kubernetes"], "areas": {"AI": ["llm", "rag"], "Platform": ["kubernetes"]}}))
@@ -72,13 +70,8 @@ class HealthyTests(Tree):
         self.assertEqual(self.problems(), [])
 
     def test_missing_optional_files_are_fine(self):
-        (self.root / "README.md").unlink()
         (self.root / "config.json").unlink()
         (self.root / "digest" / "weekly" / "2026-W47.md").unlink()
-        self.assertEqual(self.problems(), [])
-
-    def test_readme_without_the_block_is_fine(self):
-        (self.root / "README.md").write_text("# no markers here\n")
         self.assertEqual(self.problems(), [])
 
 
@@ -175,15 +168,6 @@ class IndexAndReadmeTests(Tree):
         old = "| Date | Repo | Stars | Topic | Notes |\n|---|---|---|---|---|\n"
         old += "\n".join(f"| {e['date']} | [{e['repo']}](u) | 1 | llm | [digest](d) |" for e in self.state) + "\n"
         (self.root / "INDEX.md").write_text(old)
-        self.assertEqual(self.problems(), [])
-
-    def test_stale_readme_block(self):
-        (self.root / "README.md").write_text(f"{dc.LATEST_START}\n| 2026-10-01 | [old/repo](x) | 1 | llm |\n{dc.LATEST_END}\n")
-        self.assertHas("README latest-picks block is out of date")
-
-    def test_readme_block_only_needs_the_newest_seven(self):
-        self.state = [entry(f"2026-10-{d:02d}", f"o/r{d}") for d in range(1, 11)]
-        self.write_all()
         self.assertEqual(self.problems(), [])
 
 

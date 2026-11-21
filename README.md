@@ -8,19 +8,6 @@ Every day a GitHub Actions workflow picks one popular, recently active open-sour
 account, and commits a short digest entry to this repo. The digest commit counts
 toward your contribution graph. See [INDEX.md](INDEX.md) for the log.
 
-## Latest picks
-
-<!-- LATEST-PICKS:START -->
-| Date | Repo | Stars | Topic |
-|---|---|---|---|
-| 2026-11-21 | [onyx-dot-app/onyx](https://github.com/onyx-dot-app/onyx) | 33,490 | llm |
-| 2026-11-20 | [ClickHouse/ClickStack](https://github.com/ClickHouse/ClickStack) | 10,058 | kubernetes |
-| 2026-11-19 | [NVIDIA/aicr](https://github.com/NVIDIA/aicr) | 482 | argocd |
-| 2026-11-18 | [vllm-project/vllm-omni](https://github.com/vllm-project/vllm-omni) | 7,813 | diffusion |
-| 2026-11-17 | [smol-machines/smolvm](https://github.com/smol-machines/smolvm) | 7,127 | containers |
-| 2026-11-16 | [EverMind-AI/Raven](https://github.com/EverMind-AI/Raven) | 6,225 | llm |
-<!-- LATEST-PICKS:END -->
-
 ## How it works
 
 ```mermaid
@@ -44,7 +31,7 @@ Design notes, the data flow, known limits and a runbook are in
 | **Daily repo fork** (`daily-fork.yml`) | 07:17 UTC daily, with backup slots at 13:43 and 19:29 UTC, manual | `verify` (tests) gates `fork` (pick, fork, commit digest). On failure it opens one issue; the next success closes it |
 | **Token health** (`token-health.yml`) | Mondays 06:43 UTC, manual | checks `FORK_PAT` is valid, has only `public_repo`, and is not within 14 days of expiry; opens an issue if not |
 | **Weekly roll-up** (`weekly-rollup.yml`) | Sundays 18:23 UTC, manual | writes `digest/weekly/YYYY-Www.md` (repos, topic and language counts, optional Claude themes) and commits it |
-| **Data check** (`data-check.yml`) | daily 03:41 UTC, manual, and in CI | validates `forked.json`, the digest pages, `INDEX.md`, the README block, weekly pages and `config.json`; opens an issue if anything is inconsistent |
+| **Data check** (`data-check.yml`) | daily 03:41 UTC, manual, and in CI | validates `forked.json`, the digest pages, `INDEX.md`, weekly pages and `config.json`; opens an issue if anything is inconsistent |
 | **Watchdog** (`watchdog.yml`) | daily 12:07 and 18:47 UTC, manual | if today's digest is missing it starts the daily workflow itself (a repair for skipped schedules), and opens an issue if the newest digest is 2+ days old |
 | **Fork inventory** (`fork-inventory.yml`) | 1st of the month, manual | posts a read-only report of the forks this tool made, with candidates to prune. It never deletes anything |
 | **Publish site** (job in `daily-fork.yml`) | after each real run, if enabled | builds a small website and RSS feed from the digests. Off by default, see below |

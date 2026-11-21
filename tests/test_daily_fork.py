@@ -14,21 +14,6 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 import daily_fork as df  # noqa: E402
 
-_REAL_README = df.README_FILE
-_GUARD = {}
-
-
-def setUpModule():
-    """Point README_FILE at a throwaway file so no test can modify the real README."""
-    _GUARD["tmp"] = tempfile.TemporaryDirectory()
-    df.README_FILE = Path(_GUARD["tmp"].name) / "README.md"
-
-
-def tearDownModule():
-    df.README_FILE = _REAL_README
-    _GUARD["tmp"].cleanup()
-
-
 def make_repo(name="acme/agent", stars=500, owner=None, created_at=None, pushed_at="2026-11-16T10:00:00Z"):
     owner = owner or name.split("/")[0]
     repo = {
@@ -148,7 +133,6 @@ class MainTests(unittest.TestCase):
             mock.patch.object(df, "STATE_FILE", root / "forked.json"),
             mock.patch.object(df, "DIGEST_DIR", root / "digest"),
             mock.patch.object(df, "INDEX_FILE", root / "INDEX.md"),
-            mock.patch.object(df, "README_FILE", root / "README.md"),
             mock.patch.object(df, "TOKEN", "tok"),
             mock.patch.object(df, "DRY_RUN", False),
             mock.patch.object(df, "ANTHROPIC_KEY", ""),
@@ -156,7 +140,6 @@ class MainTests(unittest.TestCase):
         for p in self.patches:
             p.start()
         self.root = root
-        (root / "README.md").write_text(f"# T\n\n{df.LATEST_START}\n{df.LATEST_END}\n")
         self.out = root / "gh_output"
         self.summary = root / "gh_summary"
         self.env = mock.patch.dict(
@@ -257,17 +240,6 @@ class MainTests(unittest.TestCase):
         page = next((self.root / "digest").glob("*.md")).read_text()
         self.assertNotIn("Security advisories", page)
         self.assertNotIn("What's new", page)
-
-    def test_real_run_refreshes_the_readme_block(self):
-        with mock.patch.object(df, "gh", FakeGitHub([make_repo("acme/agent", stars=900)])):
-            df.main()
-        self.assertIn("[acme/agent](https://github.com/acme/agent) | 900 |", (self.root / "README.md").read_text())
-
-    def test_dry_run_leaves_the_readme_alone(self):
-        before = (self.root / "README.md").read_text()
-        with mock.patch.object(df, "gh", FakeGitHub([make_repo("acme/agent")])), mock.patch.object(df, "DRY_RUN", True):
-            df.main()
-        self.assertEqual((self.root / "README.md").read_text(), before)
 
     def test_real_run_page_includes_release_and_readme_facts(self):
         fake = FakeGitHub(
@@ -458,38 +430,6 @@ class ForkCadenceTests(unittest.TestCase):
         index = df.render_index(st)
         self.assertIn("(https://github.com/o/r0)", index)
         self.assertIn("| no |", index)
-
-
-class ReadmeBlockTests(unittest.TestCase):
-    STATE = [{"date": f"2026-11-{d:02d}", "repo": f"o/r{d}", "stars": d * 1000, "topic": "llm"} for d in range(1, 10)]
-
-    def test_block_lists_the_newest_seven_first(self):
-        block = df.render_latest_block(self.STATE)
-        rows = [ln for ln in block.splitlines() if ln.startswith("| 2026")]
-        self.assertEqual(len(rows), 7)
-        self.assertTrue(rows[0].startswith("| 2026-11-09"))
-        self.assertIn("[o/r9](https://github.com/o/r9) | 9,000 |", rows[0])
-
-    def test_replace_block_keeps_surrounding_text(self):
-        text = f"before\n{df.LATEST_START}\nold\n{df.LATEST_END}\nafter\n"
-        got = df.replace_block(text, "NEW")
-        self.assertEqual(got, f"before\n{df.LATEST_START}\nNEW\n{df.LATEST_END}\nafter\n")
-
-    def test_missing_or_reversed_markers_change_nothing(self):
-        self.assertEqual(df.replace_block("no markers", "NEW"), "no markers")
-        reversed_ = f"{df.LATEST_END}\n{df.LATEST_START}\n"
-        self.assertEqual(df.replace_block(reversed_, "NEW"), reversed_)
-
-    def test_update_readme_is_idempotent_and_reports_changes(self):
-        with tempfile.TemporaryDirectory() as d:
-            path = Path(d) / "README.md"
-            path.write_text(f"{df.LATEST_START}\n{df.LATEST_END}\n")
-            with mock.patch.object(df, "README_FILE", path):
-                self.assertTrue(df.update_readme(self.STATE))
-                self.assertFalse(df.update_readme(self.STATE))
-                self.assertIn("o/r9", path.read_text())
-            with mock.patch.object(df, "README_FILE", Path(d) / "missing.md"):
-                self.assertFalse(df.update_readme(self.STATE))
 
 
 class TopicSearchResilienceTests(unittest.TestCase):

@@ -7,7 +7,6 @@ Checks (all structural, so a template change never makes it fail):
   * every entry has a digest page digest/<date>.md whose heading and "Date picked" line match,
     and every digest page belongs to an entry
   * INDEX.md has one row per entry and mentions every repo
-  * the README "latest picks" block lists the newest entries
   * weekly pages are named YYYY-Www.md and start with "# Week YYYY-Www"
   * config.json topics are unique and every topic belongs to exactly one area
 
@@ -23,12 +22,10 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 
 DEFAULT_ROOT = Path(__file__).resolve().parent.parent
-LATEST_START, LATEST_END = "<!-- LATEST-PICKS:START -->", "<!-- LATEST-PICKS:END -->"
 REPO_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 FORK_RE = re.compile(r"^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 DIGEST_RE = re.compile(r"^\d{4}-\d{2}-\d{2}\.md$")
 WEEKLY_RE = re.compile(r"^(\d{4})-W(\d{2})\.md$")
-LATEST_COUNT = 7
 
 
 def _parse_day(value):
@@ -120,24 +117,6 @@ def check_index(root, entries):
     return problems
 
 
-def check_readme(root, entries):
-    path = root / "README.md"
-    if not path.exists():
-        return []
-    text = path.read_text(encoding="utf-8")
-    a, b = text.find(LATEST_START), text.find(LATEST_END)
-    if a == -1 or b == -1 or b < a:
-        return []                      # the block is optional
-    block = text[a + len(LATEST_START): b]
-    shown = re.findall(r"^\| (\d{4}-\d{2}-\d{2}) \| \[([^\]]+)\]", block, re.M)
-    newest = sorted(entries, key=lambda e: e["date"], reverse=True)[:LATEST_COUNT]
-    want = [(e["date"], e["repo"]) for e in newest]
-    if shown != want:
-        return [f"README latest-picks block is out of date: shows {len(shown)} rows, expected {len(want)} "
-                f"(newest {want[0][0] if want else 'none'})"]
-    return []
-
-
 def check_weekly(root):
     problems = []
     weekly = root / "digest" / "weekly"
@@ -199,7 +178,6 @@ def check(root, today=None):
     problems, entries = check_state(state, today)
     problems += check_digests(root, entries)
     problems += check_index(root, entries)
-    problems += check_readme(root, entries)
     problems += check_weekly(root)
     problems += check_config(root)
     return problems
