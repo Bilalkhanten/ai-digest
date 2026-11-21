@@ -13,12 +13,19 @@ from digestlib import PROJECT_NAME, area_for, entry_link, load_areas
 
 STATS_CSS = """
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(8rem,1fr));gap:.75rem}
-.tile{border:1px solid var(--line);border-radius:8px;padding:.6rem .8rem}
-.num{font-size:1.5rem;font-weight:600}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:.7rem .9rem;
+box-shadow:var(--shadow)}
+.tile .muted{font-size:.8rem}
+.num{font-size:1.8rem;font-weight:700;line-height:1.2;background:linear-gradient(135deg,#2da44e,
+#1d6fd8);
+-webkit-background-clip:text;background-clip:text;color:transparent}
 .bar{fill:var(--link)} .lbl{fill:var(--fg);font-size:12px} .val{fill:var(--muted);font-size:11px}
-table{border-collapse:collapse;width:100%;font-size:.9rem}
-td,th{border-top:1px solid var(--line);padding:.35rem .4rem;text-align:left}
-th{color:var(--muted);font-weight:500}
+table{border-collapse:collapse;width:100%;font-size:.9rem;background:var(--card);
+border:1px solid var(--line)}
+td,th{border-top:1px solid var(--line);padding:.4rem .6rem;text-align:left}
+tr:nth-child(even) td{background:rgba(127,127,127,.06)}
+th{color:var(--muted);font-weight:600;background:rgba(127,127,127,.08)}
+h2{margin-top:1.5rem}
 """
 
 
@@ -166,8 +173,10 @@ def render_stats_page(css, entries, infos, stars_now, today, generated_label, ar
         "<meta name='viewport' content='width=device-width,initial-scale=1'>"
         f"<title>{escape(PROJECT_NAME)}: stats</title>"
         f"<style>{css}{STATS_CSS}</style></head><body><main>"
-        "<h1>Stats</h1><p class='muted'><a href='index.html'>Back to the index</a> &middot; "
-        f"<a href='digests.json'>digests.json</a> (open data) &middot; built {escape(generated_label)}</p>"
+        "<header class='hero'><h1>Stats</h1><p class='muted'>"
+        f"Built {escape(generated_label)}</p>"
+        "<nav class='links'><a href='index.html'>Back to the index</a>"
+        "<a href='digests.json'>Open data</a></nav></header>"
         f"<div class='tiles'>{tile_html}</div>"
         "<h2 style='margin-top:1.5rem'>Picks per week (last 12 weeks)</h2>"
         f"{column_chart_svg(weekly_counts(days, today), 'Picks per week')}"

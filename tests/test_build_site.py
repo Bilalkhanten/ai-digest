@@ -266,7 +266,7 @@ class AreaTests(unittest.TestCase):
     def test_feed_links_are_listed_when_given(self):
         html = bs.render_index(self.ENTRIES, [], "", "", feeds=[("All", "feed.xml"), ("AI", "feed-ai.xml")])
         self.assertIn("href='feed-ai.xml'", html)
-        self.assertIn("RSS: <a href='feed.xml'>All</a> &middot; <a href='feed-ai.xml'>AI</a>", html)
+        self.assertIn("<span>RSS</span><a href='feed.xml'>All</a><a href='feed-ai.xml'>AI</a>", html)
         self.assertEqual(html.count("rel='alternate'"), 2)
 
 

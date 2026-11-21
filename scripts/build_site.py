@@ -31,23 +31,74 @@ MAX_PAGE_ENTRIES = 100
 MAX_FEED_ENTRIES = 30
 
 CSS = """
-:root{--bg:#fff;--fg:#1f2328;--muted:#59636e;--line:#d1d9e0;--link:#0969da}
+:root{--bg:#f6f8fa;--card:#fff;--fg:#1f2328;--muted:#59636e;--line:#d1d9e0;--link:#0969da;
+--accent:#2da44e;
+--shadow:0 1px 2px rgba(31,35,40,.06),0 4px 14px rgba(31,35,40,.05);--hero1:#0b1320;--hero2:#14304f;
+--hero3:#1d5a8a}
 @media (prefers-color-scheme:dark)
-{:root{--bg:#0d1117;--fg:#e6edf3;--muted:#9198a1;--line:#3d444d;--link:#4493f8}}
-body{background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,sans-serif;margin:0}
-main{max-width:46rem;margin:0 auto;padding:1.5rem 1rem}
-a{color:var(--link)} h1{margin:0 0 .25rem} .muted{color:var(--muted);font-size:.9rem}
-article{border-top:1px solid var(--line);padding:1rem 0} h2{font-size:1.1rem;margin:0}
-ul{margin:.4rem 0 0 1.2rem;padding:0}
+{:root{--bg:#0d1117;--card:#151b23;--fg:#e6edf3;--muted:#9198a1;--line:#30363d;--link:#58a6ff;
+--accent:#3fb950;
+--shadow:0 1px 2px rgba(0,0,0,.5)}}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,
+sans-serif;margin:0}
+main{max-width:52rem;margin:0 auto;padding:0 1rem 2.5rem}
+a{color:var(--link);text-underline-offset:2px}
+:focus-visible{outline:2px solid var(--link);outline-offset:2px}
+.muted{color:var(--muted);font-size:.9rem}
+.hero{position:relative;overflow:hidden;margin:0 -1rem 1.25rem;padding:2rem 1.4rem 1.3rem 1.6rem;
+color:#fff;
+border-radius:0 0 18px 18px;background:linear-gradient(135deg,var(--hero1),var(--hero2) 55%,
+var(--hero3))}
+.hero::before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;
+background:linear-gradient(#3fb950,#58a6ff)}
+.hero::after{content:"";position:absolute;right:-60px;top:-80px;width:260px;height:260px;
+border-radius:50%;
+background:rgba(88,166,255,.10)}
+.hero h1{position:relative;margin:0 0 .3rem;font-size:2.1rem;letter-spacing:-.02em;line-height:1.15;
+color:#fff}
+.hero .muted{position:relative;margin:0 0 .9rem;color:#b8d4f0;font-size:1rem}
+.links{position:relative;display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;font-size:.85rem;
+color:#b8d4f0}
+.links a{color:#fff;text-decoration:none;background:rgba(255,255,255,.13);padding:.2rem .7rem;
+border-radius:999px}
+.links a:hover{background:rgba(255,255,255,.25)}
+.links .sep{width:1px;height:1.1rem;background:rgba(255,255,255,.3);margin:0 .3rem}
+h2{font-size:1.1rem;margin:0}
+article{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:1rem 1.2rem;
+margin:.9rem 0;
+box-shadow:var(--shadow);transition:border-color .15s,box-shadow .15s}
+article:hover{border-color:var(--link);box-shadow:0 4px 18px rgba(9,105,218,.13)}
+article h2{font-size:1.2rem;line-height:1.3}
+article h2 a{color:var(--fg);text-decoration:none}
+article h2 a:hover{color:var(--link)}
+article .muted{font-size:.85rem}
+article p{margin:.55rem 0}
+article p.muted{line-height:1.5}
+ul{margin:.5rem 0 0;padding:0;list-style:none}
+li{margin:.3rem 0;padding:.35rem .7rem;border-left:3px solid var(--accent);
+border-radius:0 8px 8px 0;
+background:rgba(46,164,79,.08)}
+code{font:.85em ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:rgba(127,127,127,
+.16);
+padding:.1rem .35rem;border-radius:6px;word-break:break-word}
 [hidden]{display:none!important}
-input[type=search]{font:inherit;width:100%;box-sizing:border-box;padding:.4rem .6rem;color:var(--fg);
-background:transparent;border:1px solid var(--line);border-radius:.4rem;margin:.5rem 0}
-.chips{display:flex;flex-wrap:wrap;gap:.4rem;margin:.75rem 0}
-.chip{font:inherit;font-size:.85rem;color:var(--fg);background:transparent;border:1px solid var(--line);
-border-radius:999px;padding:.15rem .7rem;cursor:pointer}
+input[type=search]{font:inherit;width:100%;padding:.65rem .95rem;color:var(--fg);
+background:var(--card);
+border:1px solid var(--line);border-radius:12px;margin:.5rem 0;box-shadow:var(--shadow)}
+.chips{display:flex;flex-wrap:wrap;gap:.4rem;margin:.6rem 0}
+.chip{font:inherit;font-size:.85rem;color:var(--fg);background:var(--card);
+border:1px solid var(--line);
+border-radius:999px;padding:.2rem .8rem;cursor:pointer;transition:border-color .12s,transform .12s}
+.chip:hover{border-color:var(--link);transform:translateY(-1px)}
 .chip span{color:var(--muted)}
-.chip[aria-pressed=true]{background:var(--link);border-color:var(--link);color:var(--bg)}
-.chip[aria-pressed=true] span{color:var(--bg)}
+.chip[aria-pressed=true]{background:linear-gradient(135deg,#2da44e,#1d6fd8);
+border-color:transparent;color:#fff}
+.chip[aria-pressed=true] span{color:rgba(255,255,255,.8)}
+footer{margin-top:2rem;padding-top:1rem;border-top:1px solid var(--line);text-align:center}
+@media (max-width:600px){.hero{padding:1.4rem 1rem 1.1rem 1.3rem}.hero h1{font-size:1.6rem}article{
+padding:.9rem}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
 """
 
 
@@ -199,19 +250,22 @@ def render_index(entries, weekly_files, site_url, repo_slug, areas=None, feeds=N
         f"href='{escape(file)}'>"
         for label, file in feeds
     )
-    feed_links = " &middot; ".join(f"<a href='{escape(file)}'>{escape(label)}</a>" for label, file in feeds)
+    feed_links = "".join(f"<a href='{escape(file)}'>{escape(label)}</a>" for label, file in feeds)
     parts = [
         "<!doctype html><html lang='en'><head><meta charset='utf-8'>",
         "<meta name='viewport' content='width=device-width,initial-scale=1'>",
         f"<title>{escape(PROJECT_NAME)}</title>",
         alternates,
         f"<style>{CSS}</style></head><body><main>",
+        "<header class='hero'>",
         f"<h1>{escape(PROJECT_NAME)}</h1>",
         "<p class='muted'>Open-source projects scored on momentum "
-        "(AI, DevOps, Kubernetes, SRE and more). "
-        f"RSS: {feed_links} &middot; <a href='stats.html'>Stats</a> &middot; "
-        + ("<a href='contribute.html'>Contribute</a> &middot; " if show_contribute else "")
-        + "<a href='digests.json'>Open data</a></p>",
+        "(AI, DevOps, Kubernetes, SRE and more).</p>",
+        f"<nav class='links' aria-label='Site links'><span>RSS</span>{feed_links}<span class='sep'></span>"
+        "<a href='stats.html'>Stats</a>"
+        + ("<a href='contribute.html'>Contribute</a>" if show_contribute else "")
+        + "<a href='digests.json'>Open data</a></nav>",
+        "</header>",
     ]
     if weekly_files and repo_slug:
         links = " &middot; ".join(
@@ -233,6 +287,13 @@ def render_index(entries, weekly_files, site_url, repo_slug, areas=None, feeds=N
             f"{escape(e['topic'])}{lang}{fork}</div>"
             f"<p>{escape(info['description'])}</p>{glance_html(info)}{summary_html(info['summary'])}</article>"
         )
+    source = (
+        f" &middot; <a href='https://github.com/{escape(repo_slug)}'>Source</a>" if repo_slug else ""
+    )
+    parts.append(
+        "<footer class='muted'>Static site generated by a scheduled pipeline &middot; "
+        f"<a href='digests.json'>open data</a>{source}</footer>"
+    )
     parts.append(f"</main><script>{FILTER_JS}</script></body></html>")
     return "\n".join(parts)
 
