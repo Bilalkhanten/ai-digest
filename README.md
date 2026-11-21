@@ -10,6 +10,20 @@
 [![Token health](https://github.com/Bilalkhanten/ai-digest/actions/workflows/token-health.yml/badge.svg)](https://github.com/Bilalkhanten/ai-digest/actions/workflows/token-health.yml)
 [![Fork inventory](https://github.com/Bilalkhanten/ai-digest/actions/workflows/fork-inventory.yml/badge.svg)](https://github.com/Bilalkhanten/ai-digest/actions/workflows/fork-inventory.yml)
 
+![Python 3.10 to 3.13](https://img.shields.io/badge/Python-3.10--3.13-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![TypeScript on Node 22 and 24](https://img.shields.io/badge/TypeScript-Node_22%20%7C%2024-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![Docker image on ghcr.io](https://img.shields.io/badge/Docker-ghcr.io-2496ED?style=for-the-badge&logo=docker&logoColor=white)
+![Automated with GitHub Actions](https://img.shields.io/badge/GitHub_Actions-automated-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)
+
+![Last commit](https://img.shields.io/github/last-commit/Bilalkhanten/ai-digest?style=flat-square)
+![Commit activity per month](https://img.shields.io/github/commit-activity/m/Bilalkhanten/ai-digest?style=flat-square)
+![Latest copilot release](https://img.shields.io/github/v/release/Bilalkhanten/ai-digest?include_prereleases&filter=copilot-v*&label=release&style=flat-square)
+![Copilot license: MIT](https://img.shields.io/badge/copilot_license-MIT-green?style=flat-square)
+
+![GitHub stars](https://img.shields.io/github/stars/Bilalkhanten/ai-digest?style=social)
+![Top language](https://img.shields.io/github/languages/top/Bilalkhanten/ai-digest?style=plastic)
+![Open issues](https://img.shields.io/github/issues/Bilalkhanten/ai-digest?style=flat)
+
 Every day a GitHub Actions workflow picks one popular, recently active open-source repo
 (rotating topics across AI, Kubernetes, DevOps, SRE, monitoring and more), forks it into your
 account, and commits a short digest entry to this repo. The digest commit counts

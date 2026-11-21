@@ -48,6 +48,17 @@ class ReadmeLinksTests(unittest.TestCase):
 
 
 class BadgeTests(unittest.TestCase):
+    def test_images_only_come_from_github_or_shields(self):
+        text = (ROOT / "README.md").read_text()
+        for url in re.findall(r"!\[[^\]]*\]\((https?://[^)\s]+)\)", text):
+            self.assertRegex(url, r"^https://(github\.com|img\.shields\.io)/", f"unexpected image host: {url}")
+
+    def test_the_static_license_badge_matches_the_real_license(self):
+        text = (ROOT / "README.md").read_text()
+        if "copilot_license-MIT" in text:
+            self.assertTrue((ROOT / "copilot" / "LICENSE").read_text().startswith("MIT License"))
+
+
     def test_every_workflow_badge_points_at_a_real_workflow_file(self):
         text = (ROOT / "README.md").read_text()
         badges = re.findall(r"actions/workflows/([\w.-]+\.yml)/badge\.svg", text)
