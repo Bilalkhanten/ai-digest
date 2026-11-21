@@ -9,7 +9,7 @@ from collections import Counter
 from datetime import timedelta
 from html import escape
 
-from digestlib import PROJECT_NAME, area_for, entry_link, load_areas
+from digestlib import HEAD_ICON, PROJECT_NAME, area_for, entry_link, load_areas
 
 STATS_CSS = """
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(8rem,1fr));gap:.75rem}
@@ -171,7 +171,7 @@ def render_stats_page(css, entries, infos, stars_now, today, generated_label, ar
     return (
         "<!doctype html><html lang='en'><head><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-        f"<title>{escape(PROJECT_NAME)}: stats</title>"
+        f"<title>{escape(PROJECT_NAME)}: stats</title>{HEAD_ICON}"
         f"<style>{css}{STATS_CSS}</style></head><body><main>"
         "<header class='hero'><h1>Stats</h1><p class='muted'>"
         f"Built {escape(generated_label)}</p>"

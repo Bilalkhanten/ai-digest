@@ -10,6 +10,7 @@ import sys
 import urllib.parse
 from html import escape
 
+from digestlib import HEAD_ICON
 from fork_inventory import fetch as fetch_json
 from glance import pick_opportunities
 
@@ -57,6 +58,7 @@ def render_board_page(css, board, generated_label):
         "<!doctype html><html lang='en'><head><meta charset='utf-8'>",
         "<meta name='viewport' content='width=device-width,initial-scale=1'>",
         "<title>Contribute</title>",
+        HEAD_ICON,
         f"<style>{css}</style></head><body><main>",
         "<header class='hero'><h1>Contribute</h1>",
         "<p class='muted'>Open <code>good first issue</code> and <code>help wanted</code> issues in "

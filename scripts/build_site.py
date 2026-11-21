@@ -19,8 +19,8 @@ from xml.sax.saxutils import escape as xml_escape
 
 from board import fetch_board, render_board_page
 from digestlib import (
-    PROJECT_NAME, ROOT, area_for, area_slug, entry_link, load_areas, load_contribution_labels, load_state,
-    parse_date, parse_digest,
+    FAVICON_SVG, HEAD_ICON, PROJECT_NAME, ROOT, area_for, area_slug, entry_link, load_areas,
+    load_contribution_labels, load_state, parse_date, parse_digest,
 )
 from fork_inventory import fetch as fetch_repo
 from stats import digests_json, render_stats_page
@@ -29,6 +29,8 @@ DIGEST_DIR = ROOT / "digest"
 WEEKLY_DIR = DIGEST_DIR / "weekly"
 MAX_PAGE_ENTRIES = 100
 MAX_FEED_ENTRIES = 30
+SOCIAL_IMAGE = ROOT / "assets" / "social-preview.jpg"
+NEW_DAYS = 1                     # picks this many days old (or newer) get a "new" badge
 
 CSS = """
 :root{--bg:#f6f8fa;--card:#fff;--fg:#1f2328;--muted:#59636e;--line:#d1d9e0;--link:#0969da;
@@ -95,6 +97,12 @@ border-radius:999px;padding:.2rem .8rem;cursor:pointer;transition:border-color .
 .chip[aria-pressed=true]{background:linear-gradient(135deg,#2da44e,#1d6fd8);
 border-color:transparent;color:#fff}
 .chip[aria-pressed=true] span{color:rgba(255,255,255,.8)}
+.badge{display:inline-block;margin-left:.5rem;padding:0 .5rem;border-radius:999px;font-size:.7rem;
+font-weight:600;letter-spacing:.03em;text-transform:uppercase;vertical-align:middle;color:#fff;
+background:linear-gradient(135deg,#2da44e,#1d6fd8)}
+.copy{font:inherit;font-size:.75rem;margin-left:.4rem;padding:.05rem .55rem;color:var(--fg);
+background:var(--card);border:1px solid var(--line);border-radius:999px;cursor:pointer}
+.copy:hover{border-color:var(--link)}
 footer{margin-top:2rem;padding-top:1rem;border-top:1px solid var(--line);text-align:center}
 @media (max-width:600px){.hero{padding:1.4rem 1rem 1.1rem 1.3rem}.hero h1{font-size:1.6rem}article{
 padding:.9rem}}
@@ -144,6 +152,25 @@ FILTER_JS = """
 })();
 """
 MAX_CHIPS = 12
+
+# Adds a "Copy" button after each install command. Runs only where the clipboard API exists.
+COPY_JS = """
+(function(){
+  if(!navigator.clipboard) return;
+  document.querySelectorAll('article code').forEach(function(c){
+    var prev=c.previousSibling;
+    if(!prev||!/Install: *$/.test(prev.textContent||'')) return;
+    var b=document.createElement('button'); b.type='button'; b.className='copy'; b.textContent='Copy';
+    b.setAttribute('aria-label','Copy install command');
+    b.addEventListener('click',function(){
+      navigator.clipboard.writeText(c.textContent).then(function(){
+        b.textContent='Copied'; setTimeout(function(){b.textContent='Copy';},1500);
+      },function(){b.textContent='Failed';});
+    });
+    c.after(b);
+  });
+})();
+"""
 
 
 def _chip(attrs, label, count, pressed):
@@ -242,7 +269,29 @@ def default_site_url():
     return ""
 
 
-def render_index(entries, weekly_files, site_url, repo_slug, areas=None, feeds=None, show_contribute=False):
+def social_meta(site_url, with_image):
+    """Description and Open Graph / Twitter tags so links to the site preview well."""
+    title = escape(PROJECT_NAME)
+    desc = escape("Open-source projects scored on momentum: AI, DevOps, Kubernetes, SRE and more.")
+    tags = [
+        f"<meta name='description' content='{desc}'>",
+        f"<meta property='og:title' content='{title}'>",
+        f"<meta property='og:description' content='{desc}'>",
+        "<meta property='og:type' content='website'>",
+    ]
+    if site_url:
+        tags.append(f"<meta property='og:url' content='{escape(site_url)}'>")
+        if with_image:
+            tags.append(f"<meta property='og:image' content='{escape(site_url)}social-preview.jpg'>")
+    tags.append(
+        "<meta name='twitter:card' content='summary_large_image'>" if site_url and with_image
+        else "<meta name='twitter:card' content='summary'>"
+    )
+    return "".join(tags)
+
+
+def render_index(entries, weekly_files, site_url, repo_slug, areas=None, feeds=None, show_contribute=False,
+                 today=None, social_image=False):
     areas = areas or load_areas()
     feeds = feeds or [("All", "feed.xml")]
     alternates = "".join(
@@ -255,6 +304,8 @@ def render_index(entries, weekly_files, site_url, repo_slug, areas=None, feeds=N
         "<!doctype html><html lang='en'><head><meta charset='utf-8'>",
         "<meta name='viewport' content='width=device-width,initial-scale=1'>",
         f"<title>{escape(PROJECT_NAME)}</title>",
+        HEAD_ICON,
+        social_meta(site_url, social_image),
         alternates,
         f"<style>{CSS}</style></head><body><main>",
         "<header class='hero'>",
@@ -280,9 +331,11 @@ def render_index(entries, weekly_files, site_url, repo_slug, areas=None, feeds=N
         info = info_for(e)
         fork = f" &middot; <a href='{escape(e['fork_url'])}'>fork</a>" if e.get("fork_url") else ""
         lang = f" &middot; {escape(info['language'])}" if info["language"] != "n/a" else ""
+        age = (today - parse_date(e["date"])).days if today else None
+        fresh = " <span class='badge'>new</span>" if age is not None and 0 <= age <= NEW_DAYS else ""
         parts.append(
             f"<article data-topic='{escape(e['topic'])}' data-area='{escape(area_for(e['topic'], areas))}'>"
-            f"<h2><a href='https://github.com/{escape(e['repo'])}'>{escape(e['repo'])}</a></h2>"
+            f"<h2><a href='https://github.com/{escape(e['repo'])}'>{escape(e['repo'])}</a>{fresh}</h2>"
             f"<div class='muted'>{escape(e['date'])} &middot; {e['stars']:,} stars &middot; "
             f"{escape(e['topic'])}{lang}{fork}</div>"
             f"<p>{escape(info['description'])}</p>{glance_html(info)}{summary_html(info['summary'])}</article>"
@@ -294,7 +347,7 @@ def render_index(entries, weekly_files, site_url, repo_slug, areas=None, feeds=N
         "<footer class='muted'>Static site generated by a scheduled pipeline &middot; "
         f"<a href='digests.json'>open data</a>{source}</footer>"
     )
-    parts.append(f"</main><script>{FILTER_JS}</script></body></html>")
+    parts.append(f"</main><script>{FILTER_JS}{COPY_JS}</script></body></html>")
     return "\n".join(parts)
 
 
@@ -431,10 +484,13 @@ def build(out_dir, state=None, now=None, stars_now=None, areas=None, board=None)
     (out / "index.html").write_text(
         render_index(
             entries[:MAX_PAGE_ENTRIES], weekly, site_url, os.getenv("GITHUB_REPOSITORY", ""), areas, feeds,
-            show_contribute=board is not None,
+            show_contribute=board is not None, today=now.date(), social_image=SOCIAL_IMAGE.exists(),
         ),
         encoding="utf-8",
     )
+    (out / "favicon.svg").write_text(FAVICON_SVG, encoding="utf-8")
+    if SOCIAL_IMAGE.exists():
+        (out / SOCIAL_IMAGE.name).write_bytes(SOCIAL_IMAGE.read_bytes())
     (out / "feed.xml").write_text(render_feed(entries[:MAX_FEED_ENTRIES], site_url, now), encoding="utf-8")
     for name, file in feeds[1:]:
         if file == "feed-weekly.xml":

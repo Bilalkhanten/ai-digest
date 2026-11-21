@@ -8,6 +8,20 @@ from datetime import date
 from pathlib import Path
 
 PROJECT_NAME = "OSS Signal Pipeline"
+
+# Favicon (an inline SVG written to favicon.svg by the site builder) and the browser theme colour.
+FAVICON_SVG = (
+    "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><defs>"
+    "<linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#2da44e'/>"
+    "<stop offset='1' stop-color='#1d6fd8'/></linearGradient></defs>"
+    "<rect width='64' height='64' rx='14' fill='url(#g)'/><g fill='#fff'>"
+    "<rect x='13' y='38' width='9' height='14' rx='2'/><rect x='27' y='28' width='9' height='24' rx='2'/>"
+    "<rect x='41' y='14' width='9' height='38' rx='2'/></g></svg>"
+)
+HEAD_ICON = (
+    "<link rel='icon' type='image/svg+xml' href='favicon.svg'>"
+    "<meta name='theme-color' content='#0b1320'>"
+)
 ROOT = Path(__file__).resolve().parent.parent
 
 # Topic areas used by the website filters and per-area feeds (overridable in config.json).

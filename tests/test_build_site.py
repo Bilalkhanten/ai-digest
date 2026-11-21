@@ -4,7 +4,7 @@ import sys
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from unittest import mock
 
@@ -429,3 +429,64 @@ class SummaryHtmlTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SiteExtrasTests(unittest.TestCase):
+    """Favicon, share metadata, the "new" badge and the copy buttons."""
+
+    ENTRIES = [
+        {"date": "2026-11-17", "repo": "a/new", "stars": 5, "topic": "llm", "fork_url": None},
+        {"date": "2026-11-16", "repo": "b/yesterday", "stars": 5, "topic": "llm", "fork_url": None},
+        {"date": "2026-11-10", "repo": "c/old", "stars": 5, "topic": "llm", "fork_url": None},
+    ]
+
+    def test_new_badge_only_on_the_latest_picks(self):
+        html = bs.render_index(self.ENTRIES, [], "", "", today=date(2026, 11, 17))
+        self.assertEqual(html.count("<span class='badge'>new</span>"), 2)
+        self.assertIn("a/new</a> <span class='badge'>new</span></h2>", html)
+        self.assertIn("c/old</a></h2>", html)
+
+    def test_no_badges_without_a_reference_date(self):
+        self.assertNotIn("class='badge'", bs.render_index(self.ENTRIES, [], "", ""))
+
+    def test_a_future_dated_entry_is_not_marked_new(self):
+        html = bs.render_index(self.ENTRIES[:1], [], "", "", today=date(2026, 11, 1))
+        self.assertNotIn("class='badge'", html)
+
+    def test_share_metadata_without_a_site_url_has_no_absolute_links(self):
+        html = bs.render_index(self.ENTRIES, [], "", "")
+        self.assertIn("<meta name='description' content=", html)
+        self.assertIn("<meta property='og:title' content='OSS Signal Pipeline'>", html)
+        self.assertNotIn("og:url", html)
+        self.assertNotIn("og:image", html)
+        self.assertIn("twitter:card' content='summary'>", html)
+
+    def test_share_metadata_with_a_site_url_and_image(self):
+        html = bs.render_index(self.ENTRIES, [], "https://me.github.io/x/", "", social_image=True)
+        self.assertIn("<meta property='og:url' content='https://me.github.io/x/'>", html)
+        self.assertIn("<meta property='og:image' content='https://me.github.io/x/social-preview.jpg'>", html)
+        self.assertIn("twitter:card' content='summary_large_image'>", html)
+
+    def test_no_image_tag_when_the_image_is_missing(self):
+        html = bs.render_index(self.ENTRIES, [], "https://me.github.io/x/", "", social_image=False)
+        self.assertNotIn("og:image", html)
+
+    def test_site_url_in_meta_is_escaped(self):
+        html = bs.render_index(self.ENTRIES, [], "https://x/?a='><script>", "", social_image=True)
+        self.assertNotIn("<script>alert", html)
+        self.assertNotIn("'><script>", html)
+
+    def test_favicon_is_linked_on_every_page_and_written_with_the_share_image(self):
+        out = Path(tempfile.mkdtemp())
+        bs.build(out / "site", state=STATE, board=[], now=datetime(2026, 11, 17, 12, tzinfo=timezone.utc))
+        site = out / "site"
+        self.assertTrue((site / "favicon.svg").read_text().startswith("<svg"))
+        self.assertTrue((site / "social-preview.jpg").exists())
+        for page in ("index.html", "stats.html", "contribute.html"):
+            self.assertIn("href='favicon.svg'", (site / page).read_text(), page)
+
+    def test_copy_button_script_is_part_of_the_single_inline_script(self):
+        html = bs.render_index(self.ENTRIES, [], "", "")
+        self.assertEqual(html.count("<script"), 1)
+        self.assertIn("navigator.clipboard", html)
+        self.assertIn("Install: *$", html)
