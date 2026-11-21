@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/banner.svg" alt="Repo digest: one popular open-source repo a day" width="100%">
+<img src="docs/banner.svg" alt="Repo digest" width="100%">
 
 **[Website](https://bilalkhanten.github.io/ai-digest/)** · **[Contribute](https://bilalkhanten.github.io/ai-digest/contribute.html)** · **[Stats](https://bilalkhanten.github.io/ai-digest/stats.html)** · **[RSS](https://bilalkhanten.github.io/ai-digest/feed.xml)** · **[Index](INDEX.md)** · **[Packages](https://github.com/Bilalkhanten?tab=packages&repo_name=ai-digest)** · **[Incident copilot](copilot/)**
 
@@ -37,17 +37,17 @@
 
 </div>
 
-Every day a GitHub Actions workflow picks one popular, recently active open-source repo
-(rotating topics across AI, Kubernetes, DevOps, SRE, monitoring and more), forks it into your
-account, and commits a short digest entry to this repo. The digest commit counts
-toward your contribution graph. See [INDEX.md](INDEX.md) for the log.
+I built this to keep up with open source across AI, Kubernetes, DevOps, SRE and monitoring. Each day
+it picks one popular, recently active repo, forks it, and adds a short digest page: what the project
+is, how active it is, what changed in its latest release, and where a newcomer could help.
+[INDEX.md](INDEX.md) is the running log.
 
 ## Highlights
 
-- **A daily pick.** One popular, recently active repo across AI, Kubernetes, DevOps, SRE, Docker and monitoring, forked to your account with a digest page.
-- **Rich digest pages.** Facts, a README excerpt, release notes, security advisories, and beginner-friendly issues you could work on.
+- **One repo a day.** A popular, recently active project from AI, Kubernetes, DevOps, SRE, Docker or monitoring, forked and written up.
+- **Digest pages.** Facts, a README excerpt, release notes, security advisories, and beginner-friendly issues to pick up.
 - **A website.** Filterable and searchable, with RSS feeds, a stats page, a Contribute page and open data.
-- **Self-healing automation.** Tests gate every run, a watchdog repairs skipped schedules, and a failure opens one issue that closes itself.
+- **Reliability built in.** Tests gate every run, a watchdog catches skipped schedules, and a failure opens one issue that closes itself.
 - **An incident copilot.** [`copilot/`](copilot/) is a read-only Kubernetes and Prometheus triage tool in TypeScript, published as an npm package and a container image. It has its own CI and never affects the daily digest.
 
 ## Pipeline
@@ -76,7 +76,7 @@ stop them, mute the issue or delete the `notify` job.
 Each run also writes a summary (what was picked or forked) to the job page.
 The API client retries transient errors (429, 5xx, network) up to 3 times.
 
-## Setup (about 10 minutes)
+## Run your own copy (about 10 minutes)
 
 1. **Create a public repo** on GitHub called `ai-digest` (default branch `main`)
    and upload everything in this folder, including the hidden `.github` folder.
