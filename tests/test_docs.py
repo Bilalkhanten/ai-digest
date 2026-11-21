@@ -12,7 +12,7 @@ def mermaid_blocks(path):
 
 
 class MermaidTests(unittest.TestCase):
-    FILES = [ROOT / "README.md", ROOT / "docs" / "ARCHITECTURE.md"]
+    FILES = [ROOT / "docs" / "ARCHITECTURE.md"]
 
     def test_each_file_has_at_least_one_diagram(self):
         for f in self.FILES:

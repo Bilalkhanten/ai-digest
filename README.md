@@ -8,21 +8,6 @@ Every day a GitHub Actions workflow picks one popular, recently active open-sour
 account, and commits a short digest entry to this repo. The digest commit counts
 toward your contribution graph. See [INDEX.md](INDEX.md) for the log.
 
-## How it works
-
-```mermaid
-flowchart TD
-    T(["Schedule 07:17 UTC or manual run"]) --> V["verify: offline tests"]
-    V -->|pass| F["fork job: pick, fork, commit"]
-    V -->|fail| A["failure issue"]
-    F -->|fail| A
-    F --> N["notify: @mention on the digest log issue"]
-    F --> P["optional: site and RSS on Pages"]
-```
-
-Design notes, the data flow, known limits and a runbook are in
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-
 ## Pipeline
 
 | Workflow | Trigger | What it does |
