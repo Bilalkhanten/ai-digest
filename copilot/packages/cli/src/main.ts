@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 import { execFile } from "node:child_process";
 import { parseArgs } from "node:util";
 import { promisify } from "node:util";
@@ -22,12 +21,17 @@ Options:
       --fixture <dir>      read pods.json, events.json, prometheus.json from a folder instead of a cluster
       --now <iso>          pretend it is this time (for reproducible demos)
   -h, --help               show this help
+      --version            print the version
 
 Environment:
   PROMETHEUS_BEARER_TOKEN  sent as an Authorization header to Prometheus, never printed
 
 The tool only reads. It runs "kubectl get pods|events -o json" and Prometheus instant queries.
 `;
+
+declare const __VERSION__: string | undefined; // replaced at bundle time; absent when run from source
+
+export const VERSION = typeof __VERSION__ === "string" ? __VERSION__ : "dev";
 
 export interface Io {
   out: (text: string) => void;
@@ -62,6 +66,7 @@ export async function main(argv: string[], io: Io, deps: Deps = {}): Promise<num
         fixture: { type: "string" },
         now: { type: "string" },
         help: { type: "boolean", short: "h", default: false },
+        version: { type: "boolean", default: false },
       },
     });
   } catch (err) {
@@ -69,6 +74,10 @@ export async function main(argv: string[], io: Io, deps: Deps = {}): Promise<num
     return 2;
   }
   const { values, positionals } = parsed;
+  if (values.version) {
+    io.out(`${VERSION}\n`);
+    return 0;
+  }
   if (values.help || positionals.length === 0) {
     io.out(HELP);
     return values.help ? 0 : 2;
@@ -117,12 +126,4 @@ export async function main(argv: string[], io: Io, deps: Deps = {}): Promise<num
     io.err(`investigation failed: ${err instanceof Error ? err.message : String(err)}\n`);
     return 1;
   }
-}
-
-const invokedDirectly = process.argv[1] !== undefined && import.meta.url.endsWith(process.argv[1].split("/").pop() ?? "\0");
-if (invokedDirectly) {
-  main(process.argv.slice(2), {
-    out: (t) => process.stdout.write(t),
-    err: (t) => process.stderr.write(t),
-  }).then((code) => process.exit(code));
 }

@@ -29,11 +29,27 @@ npm run demo
 
 The demo replays a recorded out-of-memory crash loop from `examples/crashloop/`.
 
+## Install
+
+**Container image** (no Node needed; mount your kubeconfig read-only):
+
+```bash
+docker run --rm -v ~/.kube:/home/node/.kube:ro ghcr.io/bilalkhanten/incident-copilot \
+  investigate -n <namespace> --prometheus http://host.docker.internal:9090
+```
+
+**npm** (GitHub's registry needs a token with `read:packages`, even for public packages):
+
+```bash
+echo "@bilalkhanten:registry=https://npm.pkg.github.com" >> ~/.npmrc
+npx @bilalkhanten/incident-copilot investigate -n <namespace>
+```
+
 ## Against a real cluster
 
 ```bash
-npm run build
-node packages/cli/dist/main.js investigate -n <namespace> --prometheus http://localhost:9090
+npm run bundle
+node packages/cli/dist/copilot.js investigate -n <namespace> --prometheus http://localhost:9090
 ```
 
 Needs `kubectl` configured for the cluster. If Prometheus needs a token, set

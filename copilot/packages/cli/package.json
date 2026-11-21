@@ -1,8 +1,28 @@
 {
-  "name": "@copilot/cli",
+  "name": "@bilalkhanten/incident-copilot",
   "version": "0.1.0",
-  "private": true,
+  "description": "Read-only incident triage for Kubernetes and Prometheus: gathers evidence, builds a timeline, suggests likely causes.",
+  "license": "UNLICENSED",
   "type": "module",
-  "bin": { "copilot": "dist/main.js" },
-  "dependencies": { "@copilot/core": "0.1.0", "@copilot/connectors": "0.1.0" }
+  "bin": {
+    "copilot": "dist/copilot.js"
+  },
+  "files": [
+    "dist/copilot.js"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Bilalkhanten/ai-digest.git",
+    "directory": "copilot/packages/cli"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "devDependencies": {
+    "@copilot/core": "0.1.0",
+    "@copilot/connectors": "0.1.0"
+  }
 }

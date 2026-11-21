@@ -1,7 +1,8 @@
 name: Copilot CI
 
-# Builds and tests the incident copilot in copilot/. Separate from the main CI and from the daily
-# run, so a problem here can never block the digest.
+# Builds and tests the incident copilot in copilot/, including the npm package and the container
+# image it is published as. Separate from the main CI and from the daily run, so a problem here
+# can never block the digest. Nothing is published from this workflow.
 on:
   push:
     paths:
@@ -47,7 +48,63 @@ jobs:
         run: npm test
       - name: Demo scenario still gives the expected diagnosis
         run: |
-          out="$(node packages/cli/dist/main.js investigate --fixture examples/crashloop -n shop --now 2026-11-21T10:00:00Z)"
+          out="$(node packages/cli/dist/bin.js investigate --fixture examples/crashloop -n shop --now 2026-11-21T10:00:00Z)"
           echo "$out"
           grep -q "memory limit" <<<"$out"
           grep -q "confidence: high" <<<"$out"
+
+  package:
+    name: npm package
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: copilot
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: copilot/package-lock.json
+      - run: npm ci --ignore-scripts
+      - name: Bundle
+        run: npm run bundle
+      - name: Tarball holds only the bundle, README and package.json
+        run: |
+          files="$(npm pack -w @bilalkhanten/incident-copilot --dry-run --json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s)[0].files.map(f=>f.path).sort().join(",")))')"
+          echo "$files"
+          test "$files" = "README.md,dist/copilot.js,package.json"
+      - name: Bundle is self-contained
+        run: |
+          if grep -q "@copilot/" packages/cli/dist/copilot.js; then echo "unbundled workspace import found" >&2; exit 1; fi
+      - name: Works when invoked through a symlink with a different name (how npm installs it)
+        run: |
+          ln -s "$PWD/packages/cli/dist/copilot.js" "$RUNNER_TEMP/copilot"
+          test "$("$RUNNER_TEMP/copilot" --version)" = "$(node -p 'require("./packages/cli/package.json").version')"
+          "$RUNNER_TEMP/copilot" investigate -n shop --fixture examples/crashloop --now 2026-11-21T10:00:00Z | grep -q "memory limit"
+
+  image:
+    name: Container image
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Build (not pushed)
+        run: docker build --tag incident-copilot:ci copilot
+      - name: Reports its version
+        run: docker run --rm incident-copilot:ci --version
+      - name: Runs the demo scenario
+        run: |
+          out="$(docker run --rm -v "$PWD/copilot/examples:/examples:ro" incident-copilot:ci \
+            investigate -n shop --fixture /examples/crashloop --now 2026-11-21T10:00:00Z)"
+          echo "$out"
+          grep -q "memory limit" <<<"$out"
+      - name: Has kubectl, and runs as a non-root user
+        run: |
+          docker run --rm --entrypoint kubectl incident-copilot:ci version --client
+          test "$(docker run --rm --entrypoint id incident-copilot:ci -u)" != "0"

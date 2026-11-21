@@ -1,0 +1,134 @@
+name: Copilot publish
+
+# Publishes the incident copilot to GitHub Packages: the npm package and the container image.
+#
+#   * A push of a tag named copilot-vX.Y.Z publishes both (X.Y.Z must match packages/cli/package.json).
+#   * A manual run does everything except publish (a dry run: build, test, `npm publish --dry-run`).
+#
+# Never triggered by normal pushes or by the daily digest. Uses only the built-in GITHUB_TOKEN.
+on:
+  push:
+    tags:
+      - "copilot-v*"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: copilot-publish
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/bilalkhanten/incident-copilot
+
+jobs:
+  check:
+    name: Checks before publishing
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+    defaults:
+      run:
+        working-directory: copilot
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: copilot/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm run build
+      - run: npm test
+      - name: Release metadata
+        id: meta
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          version="$(node -p 'require("./packages/cli/package.json").version')"
+          license="$(node -p 'require("./packages/cli/package.json").license')"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [ "$REF_TYPE" = "tag" ]; then
+            if [ "$REF_NAME" != "copilot-v$version" ]; then
+              echo "tag $REF_NAME does not match package version $version (expected copilot-v$version)" >&2
+              exit 1
+            fi
+            if [ "$license" = "UNLICENSED" ]; then
+              echo "refusing to publish: choose a license first (package.json says UNLICENSED)" >&2
+              exit 1
+            fi
+          else
+            echo "dry run: nothing will be published (license: $license)"
+          fi
+
+  npm:
+    name: npm package (GitHub Packages)
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+    defaults:
+      run:
+        working-directory: copilot
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: "22"
+          registry-url: https://npm.pkg.github.com
+          scope: "@bilalkhanten"
+          cache: npm
+          cache-dependency-path: copilot/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm run bundle
+      - name: Publish (dry run unless this is a tag)
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IS_TAG: ${{ github.ref_type == 'tag' }}
+        run: |
+          if [ "$IS_TAG" = "true" ]; then
+            npm publish -w @bilalkhanten/incident-copilot
+          else
+            npm publish -w @bilalkhanten/incident-copilot --dry-run
+          fi
+
+  image:
+    name: Container image (ghcr.io)
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Build
+        env:
+          VERSION: ${{ needs.check.outputs.version }}
+        run: docker build --tag "$IMAGE:$VERSION" --tag "$IMAGE:latest" copilot
+      - name: Smoke test
+        env:
+          VERSION: ${{ needs.check.outputs.version }}
+        run: |
+          test "$(docker run --rm "$IMAGE:$VERSION" --version)" = "$VERSION"
+          docker run --rm -v "$PWD/copilot/examples:/examples:ro" "$IMAGE:$VERSION" \
+            investigate -n shop --fixture /examples/crashloop --now 2026-11-21T10:00:00Z | grep -q "memory limit"
+      - name: Log in to ghcr.io
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+        run: echo "$GH_TOKEN" | docker login ghcr.io --username "$ACTOR" --password-stdin
+      - name: Push
+        if: github.ref_type == 'tag'
+        env:
+          VERSION: ${{ needs.check.outputs.version }}
+        run: |
+          docker push "$IMAGE:$VERSION"
+          docker push "$IMAGE:latest"

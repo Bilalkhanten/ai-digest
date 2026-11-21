@@ -20,6 +20,7 @@ Prometheus. It has its own CI workflow and does not affect the daily digest.
 | **CI** (`ci.yml`) | every push, PRs to `main` | offline tests on Python 3.10 to 3.13, `ruff`, `shellcheck`, `actionlint`, and a sole-author check (only the identities in `.github/allowed-authors.txt`, no `Co-authored-by`) |
 | **Daily repo fork** (`daily-fork.yml`) | 07:17 UTC daily, with backup slots at 13:43 and 19:29 UTC, manual | `verify` (tests) gates `fork` (pick, fork, commit digest). On failure it opens one issue; the next success closes it |
 | **Copilot CI** (`copilot-ci.yml`) | pushes and PRs that touch `copilot/` | builds and tests the TypeScript incident copilot on Node 22 and 24, and replays its demo. Independent of the daily run |
+| **Copilot publish** (`copilot-publish.yml`) | a `copilot-vX.Y.Z` tag; manual run is a dry run | publishes the incident copilot as an npm package and a container image on GitHub Packages. Never runs on normal pushes |
 | **Token health** (`token-health.yml`) | Mondays 06:43 UTC, manual | checks `FORK_PAT` is valid, has only `public_repo`, and is not within 14 days of expiry; opens an issue if not |
 | **Weekly roll-up** (`weekly-rollup.yml`) | Sundays 18:23 UTC, manual | writes `digest/weekly/YYYY-Www.md` (repos, topic and language counts, optional Claude themes) and commits it |
 | **Data check** (`data-check.yml`) | daily 03:41 UTC, manual, and in CI | validates `forked.json`, the digest pages, `INDEX.md`, weekly pages and `config.json`; opens an issue if anything is inconsistent |

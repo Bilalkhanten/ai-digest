@@ -26,6 +26,12 @@ describe("copilot CLI", () => {
     expect(none.out).toContain("Usage");
   });
 
+  it("prints its version", async () => {
+    const r = await run(["--version"]);
+    expect(r.code).toBe(0);
+    expect(r.out.trim()).toMatch(/^(dev|\d+\.\d+\.\d+)$/);
+  });
+
   it.each([
     [["investigate"], "--namespace is required"],
     [["investigate", "-n", "Bad_NS"], "not a valid Kubernetes namespace"],
