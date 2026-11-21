@@ -1,4 +1,8 @@
-# Repo digest
+<div align="center">
+
+<img src="docs/banner.svg" alt="Repo digest: one popular open-source repo a day" width="100%">
+
+**[Website](https://bilalkhanten.github.io/ai-digest/)** · **[Contribute](https://bilalkhanten.github.io/ai-digest/contribute.html)** · **[Stats](https://bilalkhanten.github.io/ai-digest/stats.html)** · **[RSS](https://bilalkhanten.github.io/ai-digest/feed.xml)** · **[Index](INDEX.md)** · **[Packages](https://github.com/Bilalkhanten?tab=packages&repo_name=ai-digest)** · **[Incident copilot](copilot/)**
 
 [![CI](https://github.com/Bilalkhanten/ai-digest/actions/workflows/ci.yml/badge.svg)](https://github.com/Bilalkhanten/ai-digest/actions/workflows/ci.yml)
 [![Daily fork](https://github.com/Bilalkhanten/ai-digest/actions/workflows/daily-fork.yml/badge.svg)](https://github.com/Bilalkhanten/ai-digest/actions/workflows/daily-fork.yml)
@@ -14,25 +18,37 @@
 ![TypeScript on Node 22 and 24](https://img.shields.io/badge/TypeScript-Node_22%20%7C%2024-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
 ![Docker image on ghcr.io](https://img.shields.io/badge/Docker-ghcr.io-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 ![Automated with GitHub Actions](https://img.shields.io/badge/GitHub_Actions-automated-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)
+![Contributors](https://img.shields.io/github/contributors/Bilalkhanten/ai-digest?style=for-the-badge&color=2ea44f)
 
 ![Last commit](https://img.shields.io/github/last-commit/Bilalkhanten/ai-digest?style=flat-square)
 ![Commit activity per month](https://img.shields.io/github/commit-activity/m/Bilalkhanten/ai-digest?style=flat-square)
 ![Latest copilot release](https://img.shields.io/github/v/release/Bilalkhanten/ai-digest?include_prereleases&filter=copilot-v*&label=release&style=flat-square)
 ![Copilot license: MIT](https://img.shields.io/badge/copilot_license-MIT-green?style=flat-square)
 
+![Copilot npm package version](https://img.shields.io/github/package-json/v/Bilalkhanten/ai-digest?filename=copilot/packages/cli/package.json&label=npm%20package&style=flat-square)
+![Website deployment status](https://img.shields.io/github/deployments/Bilalkhanten/ai-digest/github-pages?label=site&style=flat-square)
+![Node 22 or newer](https://img.shields.io/badge/node-%3E%3D22-339933?style=flat-square&logo=nodedotjs&logoColor=white)
+![Repository size](https://img.shields.io/github/repo-size/Bilalkhanten/ai-digest?style=flat-square)
+![Created](https://img.shields.io/github/created-at/Bilalkhanten/ai-digest?style=flat-square&color=blue)
+
 ![GitHub stars](https://img.shields.io/github/stars/Bilalkhanten/ai-digest?style=social)
 ![Top language](https://img.shields.io/github/languages/top/Bilalkhanten/ai-digest?style=plastic)
 ![Open issues](https://img.shields.io/github/issues/Bilalkhanten/ai-digest?style=flat)
+
+</div>
 
 Every day a GitHub Actions workflow picks one popular, recently active open-source repo
 (rotating topics across AI, Kubernetes, DevOps, SRE, monitoring and more), forks it into your
 account, and commits a short digest entry to this repo. The digest commit counts
 toward your contribution graph. See [INDEX.md](INDEX.md) for the log.
 
-## Also in this repo
+## Highlights
 
-[`copilot/`](copilot/) is a TypeScript project: a read-only incident triage tool for Kubernetes and
-Prometheus. It has its own CI workflow and does not affect the daily digest.
+- **A daily pick.** One popular, recently active repo across AI, Kubernetes, DevOps, SRE, Docker and monitoring, forked to your account with a digest page.
+- **Rich digest pages.** Facts, a README excerpt, release notes, security advisories, and beginner-friendly issues you could work on.
+- **A website.** Filterable and searchable, with RSS feeds, a stats page, a Contribute page and open data.
+- **Self-healing automation.** Tests gate every run, a watchdog repairs skipped schedules, and a failure opens one issue that closes itself.
+- **An incident copilot.** [`copilot/`](copilot/) is a read-only Kubernetes and Prometheus triage tool in TypeScript, published as an npm package and a container image. It has its own CI and never affects the daily digest.
 
 ## Pipeline
 

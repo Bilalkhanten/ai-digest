@@ -53,6 +53,14 @@ class BadgeTests(unittest.TestCase):
         for url in re.findall(r"!\[[^\]]*\]\((https?://[^)\s]+)\)", text):
             self.assertRegex(url, r"^https://(github\.com|img\.shields\.io)/", f"unexpected image host: {url}")
 
+    def test_local_images_used_by_the_readme_exist(self):
+        text = (ROOT / "README.md").read_text()
+        sources = re.findall(r'<img[^>]+src="([^"]+)"', text)
+        self.assertIn("docs/banner.svg", sources)
+        for src in sources:
+            if not src.startswith("http"):
+                self.assertTrue((ROOT / src).exists(), f"README uses missing image {src}")
+
     def test_the_static_license_badge_matches_the_real_license(self):
         text = (ROOT / "README.md").read_text()
         if "copilot_license-MIT" in text:
