@@ -1,0 +1,32 @@
+name: Bug report
+description: Something in the pipeline, the website or the incident copilot is wrong
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Daily pipeline (picking, forking, reports)
+        - Website, feeds or open data
+        - Incident copilot (CLI, npm package or container image)
+        - Workflows or CI
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps, run link or command to reproduce
+      description: A link to the workflow run, the page, or the exact command helps most.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Output
+      description: Paste relevant output. Remove any tokens or credentials first.
+      render: shell

@@ -36,7 +36,8 @@ class MermaidTests(unittest.TestCase):
         text = (ROOT / "docs" / "ARCHITECTURE.md").read_text().lower()
         for wf in (ROOT / ".github" / "workflows").glob("*.yml"):
             name = {"ci": "ci", "daily-fork": "daily pipeline run", "weekly-rollup": "weekly roll-up",
-                    "watchdog": "watchdog", "data-check": "data check", "token-health": "token health", "fork-inventory": "fork inventory", "copilot-ci": "copilot ci", "copilot-publish": "copilot publish"}[wf.stem]
+                    "watchdog": "watchdog", "data-check": "data check", "token-health": "token health", "fork-inventory": "fork inventory", "copilot-ci": "copilot ci", "copilot-publish": "copilot publish",
+                    "scorecard": "scorecard"}[wf.stem]
             self.assertIn(name, text, f"{wf.name} is not described in ARCHITECTURE.md")
 
 
@@ -78,6 +79,37 @@ class BadgeTests(unittest.TestCase):
         text = (ROOT / "README.md").read_text()
         for wf in (ROOT / ".github" / "workflows").glob("*.yml"):
             self.assertIn(f"workflows/{wf.name}/badge.svg", text, f"{wf.name} has no badge in the README")
+
+
+class RepoHealthFilesTests(unittest.TestCase):
+    def test_community_files_exist_and_say_what_they_should(self):
+        security = (ROOT / "SECURITY.md").read_text()
+        self.assertIn("Report a vulnerability", security)
+        self.assertIn("read-only", security.lower())
+        contributing = (ROOT / "CONTRIBUTING.md").read_text()
+        self.assertIn("sole-author", contributing)      # explains why outside PRs fail CI
+        self.assertIn("allowed-authors.txt", contributing)
+
+    def test_codeowners_names_an_allowed_author(self):
+        owners = (ROOT / ".github" / "CODEOWNERS").read_text()
+        allowed = {ln.strip().lower() for ln in (ROOT / ".github" / "allowed-authors.txt").read_text().splitlines()
+                   if ln.strip() and not ln.startswith("#")}
+        handle = next(ln.split()[1] for ln in owners.splitlines() if ln.startswith("*"))
+        self.assertTrue(handle.startswith("@"))
+        self.assertTrue(any(handle.lstrip("@").lower() in a for a in allowed), handle)
+
+    def test_issue_templates_are_present_and_look_like_forms(self):
+        for name in ("bug_report.yml", "feature_request.yml"):
+            text = (ROOT / ".github" / "ISSUE_TEMPLATE" / name).read_text()
+            self.assertIn("name:", text)
+            self.assertIn("body:", text)
+        self.assertIn("security/advisories/new", (ROOT / ".github" / "ISSUE_TEMPLATE" / "config.yml").read_text())
+
+    def test_scorecard_workflow_has_no_run_steps_and_pins_every_action(self):
+        text = (ROOT / ".github" / "workflows" / "scorecard.yml").read_text()
+        self.assertNotIn("\n        run:", text)            # Scorecard requires this when publishing
+        for use in re.findall(r"uses: (\S+)", text):
+            self.assertRegex(use, r"@[0-9a-f]{40}$", f"{use} is not pinned to a commit SHA")
 
 
 if __name__ == "__main__":
