@@ -1,0 +1,166 @@
+name: Copilot e2e
+
+# Runs the incident copilot against a real Kubernetes cluster (kind) instead of recorded fixtures:
+# a workload that exceeds its memory limit is deployed, and the copilot has to diagnose the
+# OOM kill using an identity that can only read pods and events. Nothing is published from here.
+on:
+  push:
+    paths:
+      - "copilot/**"
+      - ".github/workflows/copilot-e2e.yml"
+  pull_request:
+    paths:
+      - "copilot/**"
+      - ".github/workflows/copilot-e2e.yml"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: copilot-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  KIND_VERSION: v0.33.0
+  # sha256 of kind-linux-amd64 for the version above, from the release's .sha256sum file
+  KIND_SHA256: aee6151561422756b764a4ae28e7f44cda5af5a9eead3cc9985112b1de8d8e0d
+
+jobs:
+  e2e:
+    name: Real cluster (kind)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: copilot
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: copilot/package-lock.json
+      - run: npm ci --ignore-scripts
+      - name: Bundle the CLI
+        run: npm run bundle
+
+      - name: Install kind (checksum verified)
+        run: |
+          curl -fsSL -o kind "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64"
+          echo "${KIND_SHA256}  kind" | sha256sum -c -
+          sudo install -m 0755 kind /usr/local/bin/kind
+          kind version
+
+      - name: Create the cluster
+        run: kind create cluster --name e2e --wait 120s
+
+      - name: Deploy a workload that exceeds its memory limit
+        run: |
+          kubectl create namespace e2e
+          kubectl apply -n e2e -f - <<'YAML'
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: hog
+          spec:
+            replicas: 1
+            selector:
+              matchLabels: {app: hog}
+            template:
+              metadata:
+                labels: {app: hog}
+              spec:
+                containers:
+                  - name: hog
+                    image: public.ecr.aws/docker/library/python:3.12-alpine
+                    command: ["python", "-c", "import time; data = b'x' * (200 * 1024 * 1024); time.sleep(3600)"]
+                    resources:
+                      limits: {memory: 64Mi}
+          YAML
+
+      - name: Wait for the OOM kill and a restart
+        run: |
+          for i in $(seq 1 60); do
+            reason="$(kubectl get pods -n e2e -o jsonpath='{.items[0].status.containerStatuses[0].lastState.terminated.reason}' 2>/dev/null || true)"
+            restarts="$(kubectl get pods -n e2e -o jsonpath='{.items[0].status.containerStatuses[0].restartCount}' 2>/dev/null || true)"
+            echo "attempt $i: lastState=${reason:-none} restarts=${restarts:-0}"
+            if [ "$reason" = "OOMKilled" ] && [ "${restarts:-0}" -ge 2 ]; then exit 0; fi
+            sleep 5
+          done
+          echo "the workload was never OOM-killed" >&2
+          exit 1
+
+      - name: Create a read-only identity and kubeconfig
+        run: |
+          set -euo pipefail
+          kubectl create serviceaccount copilot -n e2e
+          kubectl create role copilot-read -n e2e --verb=get,list --resource=pods,events
+          kubectl create rolebinding copilot-read -n e2e --role=copilot-read --serviceaccount=e2e:copilot
+          token="$(kubectl create token copilot -n e2e --duration=30m)"
+          echo "::add-mask::$token"
+          server="$(kubectl config view --raw --minify -o jsonpath='{.clusters[0].cluster.server}')"
+          ca="$(kubectl config view --raw --minify -o jsonpath='{.clusters[0].cluster.certificate-authority-data}')"
+          cat > "$RUNNER_TEMP/readonly.kubeconfig" <<EOF
+          apiVersion: v1
+          kind: Config
+          clusters:
+            - name: kind
+              cluster: {server: "$server", certificate-authority-data: "$ca"}
+          users:
+            - name: copilot
+              user: {token: "$token"}
+          contexts:
+            - name: readonly
+              context: {cluster: kind, user: copilot, namespace: e2e}
+          current-context: readonly
+          EOF
+          chmod 0644 "$RUNNER_TEMP/readonly.kubeconfig"   # short-lived token; the container user must be able to read it
+
+      - name: The identity really is read-only
+        env:
+          KUBECONFIG: ${{ runner.temp }}/readonly.kubeconfig
+        run: |
+          test "$(kubectl auth can-i get pods -n e2e)" = "yes"
+          test "$(kubectl auth can-i list events -n e2e)" = "yes"
+          test "$(kubectl auth can-i delete pods -n e2e)" = "no"
+          test "$(kubectl auth can-i create pods -n e2e)" = "no"
+          test "$(kubectl auth can-i get secrets -n e2e)" = "no"
+          test "$(kubectl auth can-i get pods -n kube-system)" = "no"
+
+      - name: The copilot diagnoses the OOM kill (bundled CLI, read-only identity)
+        env:
+          KUBECONFIG: ${{ runner.temp }}/readonly.kubeconfig
+        run: |
+          node packages/cli/dist/copilot.js investigate -n e2e --json > "$RUNNER_TEMP/cli.json"
+          node packages/cli/dist/copilot.js investigate -n e2e
+          node -e '
+            const r = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+            const kinds = r.evidence.map((e) => e.kind);
+            const top = r.hypotheses[0];
+            if (!top || top.id !== "oom") { console.error("top hypothesis was", top); process.exit(1); }
+            if (!kinds.includes("pod.oomkilled")) { console.error("no pod.oomkilled evidence:", kinds); process.exit(1); }
+            if (!r.evidence.some((e) => e.subject.startsWith("pod/hog-"))) { console.error("wrong subject"); process.exit(1); }
+            if (r.gaps.some((g) => g.startsWith("kubernetes:"))) { console.error("kubernetes gap:", r.gaps); process.exit(1); }
+            console.log("OK:", top.title, "| evidence:", kinds.join(", "));
+          ' "$RUNNER_TEMP/cli.json"
+
+      - name: The container image gives the same answer against the same cluster
+        run: |
+          docker build --tag incident-copilot:e2e .
+          docker run --rm --network host \
+            -v "$RUNNER_TEMP/readonly.kubeconfig:/home/node/.kube/config:ro" \
+            incident-copilot:e2e investigate -n e2e --json > "$RUNNER_TEMP/image.json"
+          node -e '
+            const r = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+            if (!r.hypotheses[0] || r.hypotheses[0].id !== "oom") { console.error(r.hypotheses, r.gaps); process.exit(1); }
+            console.log("OK (image):", r.hypotheses[0].title);
+          ' "$RUNNER_TEMP/image.json"
+
+      - name: Diagnostics on failure
+        if: failure()
+        run: |
+          kubectl get pods -n e2e -o wide || true
+          kubectl describe pods -n e2e || true
+          kubectl get events -n e2e --sort-by=.lastTimestamp || true

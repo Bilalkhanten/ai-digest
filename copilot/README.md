@@ -85,7 +85,9 @@ npm run build     # tsc -b with project references
 ```
 
 CI (`.github/workflows/copilot-ci.yml`) runs the build, the tests and the demo on Node 22 and 24,
-only when something under `copilot/` changes.
+only when something under `copilot/` changes. A second workflow (`copilot-e2e.yml`) runs the copilot
+against a real `kind` cluster: a workload that exceeds its memory limit is diagnosed using a
+read-only service account, with both the bundled CLI and the container image.
 
 ## Verify a release
 

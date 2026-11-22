@@ -37,7 +37,7 @@ class MermaidTests(unittest.TestCase):
         for wf in (ROOT / ".github" / "workflows").glob("*.yml"):
             name = {"ci": "ci", "daily-fork": "daily pipeline run", "weekly-rollup": "weekly roll-up",
                     "watchdog": "watchdog", "data-check": "data check", "token-health": "token health", "fork-inventory": "fork inventory", "copilot-ci": "copilot ci", "copilot-publish": "copilot publish",
-                    "scorecard": "scorecard", "codeql": "codeql"}[wf.stem]
+                    "scorecard": "scorecard", "codeql": "codeql", "copilot-e2e": "copilot e2e"}[wf.stem]
             self.assertIn(name, text, f"{wf.name} is not described in ARCHITECTURE.md")
 
 
