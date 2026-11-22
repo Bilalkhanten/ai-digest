@@ -54,7 +54,8 @@ def parse_expiry(value):
 def evaluate(status, headers, now=None):
     """Return (problems, notes) as lists of strings."""
     now = now or datetime.now(timezone.utc)
-    problems, notes = [], []
+    problems: list[str] = []
+    notes: list[str] = []
     if status != 200:
         problems.append(f"Token rejected by GitHub (HTTP {status}). It may be expired or revoked.")
         return problems, notes

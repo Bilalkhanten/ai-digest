@@ -115,10 +115,10 @@ def gh(method, path, data=None, accept="application/vnd.github+json"):
             with urllib.request.urlopen(req, timeout=30) as resp:
                 return resp.read().decode()
         except urllib.error.HTTPError as e:
-            retry_after = e.headers.get("Retry-After") if e.headers else None
-            transient = e.code in RETRY_STATUS or (e.code == 403 and retry_after)
+            retry_after = (e.headers.get("Retry-After") if e.headers else None) or ""
+            transient = e.code in RETRY_STATUS or (e.code == 403 and bool(retry_after))
             if transient and attempt < MAX_ATTEMPTS:
-                delay = min(int(retry_after), 60) if (retry_after or "").isdigit() else 2**attempt
+                delay = min(int(retry_after), 60) if retry_after.isdigit() else 2**attempt
                 print(f"HTTP {e.code} on {method} {path}; retry {attempt} in {delay}s", file=sys.stderr)
                 time.sleep(delay)
                 continue
@@ -309,7 +309,7 @@ def fetch_opportunities(repo, today):
     return {"opportunities": found, "contributing": fetch_contributing(repo) if found else ""}
 
 
-_RELEASES = {}
+_RELEASES: dict[str, dict | None] = {}
 
 
 def release_for(repo):

@@ -188,7 +188,7 @@ def chips_html(entries, areas=None):
     areas = areas or load_areas()
     counts = Counter(e["topic"] for e in entries)
     area_of = {t: area_for(t, areas) for t in counts}
-    per_area = Counter()
+    per_area: Counter[str] = Counter()
     for e in entries:
         per_area[area_of[e["topic"]]] += 1
     chosen = []

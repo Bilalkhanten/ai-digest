@@ -51,7 +51,7 @@ change is a commit, so the history is the audit log and a same-day rerun is a no
 
 | Workflow | When | Job |
 |---|---|---|
-| CI | every push and PR | tests on Python 3.10 to 3.13, ruff, shellcheck, actionlint, and a sole-author check |
+| CI | every push and PR | tests on Python 3.10 to 3.13, ruff, shellcheck, actionlint, mypy (with `check_untyped_defs`), a 90% coverage floor, and a sole-author check |
 | Daily pipeline run | 07:17, 13:43 and 19:29 UTC | tests gate the fork; pick, fork, commit; notify; optional site publish. Extra slots are backups: a run does nothing if today's digest exists |
 | Weekly roll-up | Sundays 18:23 UTC | weekly page with topic, language and star-gain stats |
 | Data check | daily 03:41 UTC and in CI | validates the data files (`forked.json`, digest pages, index, weekly pages, config) |

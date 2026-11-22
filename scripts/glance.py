@@ -49,7 +49,8 @@ def _outside_fences(text):
 
 def readme_excerpt(text, limit=EXCERPT_LIMIT):
     """First real prose paragraph of a README, cleaned and shortened. '' if none."""
-    paragraphs, current = [], []
+    paragraphs: list[list[str]] = []
+    current: list[str] = []
     for line, in_fence in _outside_fences(text):
         if in_fence:
             continue

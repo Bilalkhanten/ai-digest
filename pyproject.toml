@@ -7,3 +7,20 @@ select = ["E", "F", "W", "B"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["E501"]
+
+[tool.mypy]
+python_version = "3.10"
+files = ["scripts"]
+check_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unreachable = true
+no_implicit_optional = true
+
+[tool.coverage.run]
+source = ["scripts"]
+branch = false
+
+[tool.coverage.report]
+skip_empty = true
+fail_under = 90

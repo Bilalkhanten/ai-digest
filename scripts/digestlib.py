@@ -6,6 +6,7 @@ import re
 import urllib.request
 from datetime import date
 from pathlib import Path
+from typing import Any
 
 PROJECT_NAME = "OSS Signal Pipeline"
 
@@ -90,7 +91,7 @@ def parse_date(value):
 
 def parse_digest(text):
     """Pull the fields we need back out of a rendered digest page."""
-    info = {
+    info: dict[str, Any] = {
         "description": "", "language": "n/a", "license": "n/a", "summary": "",
         "excerpt": "", "install": "", "release": "", "reason": "",
         "whatsnew": "", "advisories": "", "opportunities": [], "contributing": "",

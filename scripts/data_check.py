@@ -40,7 +40,8 @@ def check_state(state, today):
     problems, usable = [], []
     if not isinstance(state, list):
         return ["forked.json is not a JSON list"], []
-    seen_dates, seen_repos = {}, {}
+    seen_dates: dict[str, int] = {}
+    seen_repos: dict[str, int] = {}
     for i, e in enumerate(state):
         where = f"forked.json entry {i}"
         if not isinstance(e, dict):
@@ -118,7 +119,7 @@ def check_index(root, entries):
 
 
 def check_weekly(root):
-    problems = []
+    problems: list[str] = []
     weekly = root / "digest" / "weekly"
     if not weekly.exists():
         return problems
