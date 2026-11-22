@@ -62,8 +62,16 @@ jobs:
 
       - name: Load the workload image into the cluster
         run: |
-          for attempt in 1 2 3; do docker pull "$WORKLOAD_IMAGE" && break; sleep 10; done
-          kind load docker-image "$WORKLOAD_IMAGE" --name e2e
+          for _ in 1 2 3; do docker pull "$WORKLOAD_IMAGE" && break; sleep 10; done
+          # `kind load docker-image` fails with "content digest ... not found" when Docker keeps
+          # multi-platform images (containerd image store), so load a single-platform archive instead.
+          # If that fails too, pull the image inside the node.
+          if ! { docker save --platform linux/amd64 "$WORKLOAD_IMAGE" -o "$RUNNER_TEMP/workload.tar" \
+                 && kind load image-archive "$RUNNER_TEMP/workload.tar" --name e2e; }; then
+            echo "archive load failed; pulling the image inside the node instead" >&2
+            docker exec e2e-control-plane crictl pull "docker.io/library/$WORKLOAD_IMAGE"
+          fi
+          docker exec e2e-control-plane crictl images | grep -F "node" | grep -F "22.23.4-slim"
 
       - name: Deploy a workload that exceeds its memory limit
         run: |
