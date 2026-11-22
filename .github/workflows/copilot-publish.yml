@@ -73,6 +73,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write       # sign the provenance attestation
+      attestations: write
     defaults:
       run:
         working-directory: copilot
@@ -87,16 +89,28 @@ jobs:
           cache-dependency-path: copilot/package-lock.json
       - run: npm ci --ignore-scripts
       - run: npm run bundle
-      - name: Publish (dry run unless this is a tag)
+      - name: Pack the tarball that will be published
+        id: pack
+        run: |
+          file="$(npm pack -w @bilalkhanten/incident-copilot --pack-destination "$RUNNER_TEMP" --json | node -p 'JSON.parse(require("fs").readFileSync(0, "utf8"))[0].filename')"
+          echo "tarball=$RUNNER_TEMP/$file" >> "$GITHUB_OUTPUT"
+          sha256sum "$RUNNER_TEMP/$file"
+      - name: Publish that exact tarball (dry run unless this is a tag)
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IS_TAG: ${{ github.ref_type == 'tag' }}
+          TARBALL: ${{ steps.pack.outputs.tarball }}
         run: |
           if [ "$IS_TAG" = "true" ]; then
-            npm publish -w @bilalkhanten/incident-copilot
+            npm publish "$TARBALL"
           else
-            npm publish -w @bilalkhanten/incident-copilot --dry-run
+            npm publish "$TARBALL" --dry-run
           fi
+      - name: Attest the build provenance of the tarball
+        if: github.ref_type == 'tag'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: ${{ steps.pack.outputs.tarball }}
 
   image:
     name: Container image (ghcr.io)
@@ -106,6 +120,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write       # sign the provenance attestation
+      attestations: write
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - name: Build
@@ -126,9 +142,19 @@ jobs:
           ACTOR: ${{ github.actor }}
         run: echo "$GH_TOKEN" | docker login ghcr.io --username "$ACTOR" --password-stdin
       - name: Push
+        id: push
         if: github.ref_type == 'tag'
         env:
           VERSION: ${{ needs.check.outputs.version }}
         run: |
           docker push "$IMAGE:$VERSION"
           docker push "$IMAGE:latest"
+          digest="$(docker inspect --format '{{index .RepoDigests 0}}' "$IMAGE:$VERSION")"
+          echo "digest=${digest#*@}" >> "$GITHUB_OUTPUT"
+      - name: Attest the build provenance of the image
+        if: github.ref_type == 'tag'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true

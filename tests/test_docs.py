@@ -48,6 +48,21 @@ class ReadmeLinksTests(unittest.TestCase):
             self.assertTrue((ROOT / target).exists(), f"README links to missing {target}")
 
 
+class PublishWorkflowTests(unittest.TestCase):
+    def test_publish_workflow_attests_what_it_publishes(self):
+        text = (ROOT / ".github" / "workflows" / "copilot-publish.yml").read_text()
+        self.assertEqual(text.count("uses: actions/attest@"), 2)      # tarball and image
+        for use in re.findall(r"uses: (\S+)", text):
+            self.assertRegex(use, r"@[0-9a-f]{40}$", f"{use} is not pinned to a commit SHA")
+        self.assertIn("id-token: write", text)
+        self.assertIn("attestations: write", text)
+        # attestations are only created for real releases, never for dry runs
+        for block in text.split("- name: Attest")[1:]:
+            self.assertIn("if: github.ref_type == 'tag'", block.split("uses:")[0])
+        # the tarball that is published is the one that was packed and attested
+        self.assertIn('npm publish "$TARBALL"', text)
+
+
 class BadgeTests(unittest.TestCase):
     def test_images_only_come_from_github_or_shields(self):
         text = (ROOT / "README.md").read_text()

@@ -87,6 +87,17 @@ npm run build     # tsc -b with project references
 CI (`.github/workflows/copilot-ci.yml`) runs the build, the tests and the demo on Node 22 and 24,
 only when something under `copilot/` changes.
 
+## Verify a release
+
+Each release's npm tarball and container image carry a signed build-provenance attestation that ties
+them to the workflow run and commit that produced them:
+
+```bash
+gh attestation verify oci://ghcr.io/bilalkhanten/incident-copilot:0.1.0 --repo Bilalkhanten/ai-digest
+```
+
+(Releases up to and including 0.1.0 were published before attestations were added.)
+
 ## License
 
 MIT, see [LICENSE](LICENSE). This covers the `copilot/` folder only.
