@@ -21,6 +21,10 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  # The workload runs this image, loaded straight into the cluster, so the pod never pulls from a
+  # registry (an earlier version pulled from a public mirror and was rate-limited). It is also the
+  # base image of the copilot's own Dockerfile, so the job already depends on it.
+  WORKLOAD_IMAGE: node:22.23.4-slim
   KIND_VERSION: v0.33.0
   # sha256 of kind-linux-amd64 for the version above, from the release's .sha256sum file
   KIND_SHA256: aee6151561422756b764a4ae28e7f44cda5af5a9eead3cc9985112b1de8d8e0d
@@ -56,6 +60,11 @@ jobs:
       - name: Create the cluster
         run: kind create cluster --name e2e --wait 120s
 
+      - name: Load the workload image into the cluster
+        run: |
+          for attempt in 1 2 3; do docker pull "$WORKLOAD_IMAGE" && break; sleep 10; done
+          kind load docker-image "$WORKLOAD_IMAGE" --name e2e
+
       - name: Deploy a workload that exceeds its memory limit
         run: |
           kubectl create namespace e2e
@@ -74,8 +83,9 @@ jobs:
               spec:
                 containers:
                   - name: hog
-                    image: public.ecr.aws/docker/library/python:3.12-alpine
-                    command: ["python", "-c", "import time; data = b'x' * (200 * 1024 * 1024); time.sleep(3600)"]
+                    image: node:22.23.4-slim
+                    imagePullPolicy: Never
+                    command: ["node", "-e", "const data = Buffer.alloc(200 * 1024 * 1024, 1); setTimeout(() => {}, 3600000)"]
                     resources:
                       limits: {memory: 64Mi}
           YAML
@@ -85,7 +95,13 @@ jobs:
           for i in $(seq 1 60); do
             reason="$(kubectl get pods -n e2e -o jsonpath='{.items[0].status.containerStatuses[0].lastState.terminated.reason}' 2>/dev/null || true)"
             restarts="$(kubectl get pods -n e2e -o jsonpath='{.items[0].status.containerStatuses[0].restartCount}' 2>/dev/null || true)"
-            echo "attempt $i: lastState=${reason:-none} restarts=${restarts:-0}"
+            waiting="$(kubectl get pods -n e2e -o jsonpath='{.items[0].status.containerStatuses[0].state.waiting.reason}' 2>/dev/null || true)"
+            echo "attempt $i: lastState=${reason:-none} restarts=${restarts:-0} waiting=${waiting:-none}"
+            case "$waiting" in
+              ErrImagePull|ImagePullBackOff|ErrImageNeverPull|InvalidImageName)
+                echo "the workload image could not be started ($waiting); this is a test setup problem, not a copilot result" >&2
+                exit 1 ;;
+            esac
             if [ "$reason" = "OOMKilled" ] && [ "${restarts:-0}" -ge 2 ]; then exit 0; fi
             sleep 5
           done
