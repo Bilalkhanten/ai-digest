@@ -40,5 +40,12 @@
     "stars": 33490,
     "topic": "llm",
     "fork_url": "https://github.com/Bilalkhanten/onyx"
+  },
+  {
+    "date": "2026-11-22",
+    "repo": "woodpecker-ci/woodpecker",
+    "stars": 8264,
+    "topic": "devops",
+    "fork_url": "https://github.com/Bilalkhanten/woodpecker"
   }
 ]
