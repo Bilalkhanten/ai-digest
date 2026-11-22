@@ -3,12 +3,19 @@
 ## Reporting a vulnerability
 
 Please report security problems privately rather than in a public issue. On GitHub, open the
-**Security** tab and choose **Report a vulnerability** (private vulnerability reporting). If that
-option is not available, open an issue that says only that you have a security concern, with no
-details, and the maintainer will arrange a private channel.
+**Security** tab and choose **Report a vulnerability** (private vulnerability reporting), or go
+straight to https://github.com/Bilalkhanten/ai-digest/security/advisories/new. If that option is not
+available, open an issue that says only that you have a security concern, with no details, and the
+maintainer will arrange a private channel.
 
-You can expect an acknowledgement within a few days. This is a personal project, so fixes are
-best-effort, but credible reports are taken seriously.
+**What to expect**
+
+- An acknowledgement within 7 days.
+- An initial assessment within 14 days, and a fix or mitigation plan for confirmed issues.
+- Coordinated disclosure: please allow up to 90 days from your report before publishing details, and
+  you will be credited in the advisory unless you prefer otherwise.
+
+This is a personal project, so fixes are best-effort, but credible reports are taken seriously.
 
 ## What is in scope
 

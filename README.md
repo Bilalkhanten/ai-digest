@@ -11,6 +11,7 @@
 [![Data check](https://github.com/Bilalkhanten/ai-digest/actions/workflows/data-check.yml/badge.svg)](https://github.com/Bilalkhanten/ai-digest/actions/workflows/data-check.yml)
 [![Watchdog](https://github.com/Bilalkhanten/ai-digest/actions/workflows/watchdog.yml/badge.svg)](https://github.com/Bilalkhanten/ai-digest/actions/workflows/watchdog.yml)
 [![Weekly roll-up](https://github.com/Bilalkhanten/ai-digest/actions/workflows/weekly-rollup.yml/badge.svg)](https://github.com/Bilalkhanten/ai-digest/actions/workflows/weekly-rollup.yml)
+[![CodeQL](https://github.com/Bilalkhanten/ai-digest/actions/workflows/codeql.yml/badge.svg)](https://github.com/Bilalkhanten/ai-digest/actions/workflows/codeql.yml)
 [![Scorecard](https://github.com/Bilalkhanten/ai-digest/actions/workflows/scorecard.yml/badge.svg)](https://github.com/Bilalkhanten/ai-digest/actions/workflows/scorecard.yml)
 [![Token health](https://github.com/Bilalkhanten/ai-digest/actions/workflows/token-health.yml/badge.svg)](https://github.com/Bilalkhanten/ai-digest/actions/workflows/token-health.yml)
 [![Fork inventory](https://github.com/Bilalkhanten/ai-digest/actions/workflows/fork-inventory.yml/badge.svg)](https://github.com/Bilalkhanten/ai-digest/actions/workflows/fork-inventory.yml)
@@ -25,6 +26,7 @@
 ![Commit activity per month](https://img.shields.io/github/commit-activity/m/Bilalkhanten/ai-digest?style=flat-square)
 ![Latest copilot release](https://img.shields.io/github/v/release/Bilalkhanten/ai-digest?include_prereleases&filter=copilot-v*&label=release&style=flat-square)
 ![Copilot license: MIT](https://img.shields.io/badge/copilot_license-MIT-green?style=flat-square)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/Bilalkhanten/ai-digest/badge)](https://scorecard.dev/viewer/?uri=github.com/Bilalkhanten/ai-digest)
 
 ![Copilot npm package version](https://img.shields.io/github/package-json/v/Bilalkhanten/ai-digest?filename=copilot/packages/cli/package.json&label=npm%20package&style=flat-square)
 ![Website deployment status](https://img.shields.io/github/deployments/Bilalkhanten/ai-digest/github-pages?label=site&style=flat-square)
@@ -62,6 +64,7 @@ results as Markdown in git, a static site with RSS feeds, and open JSON data.
 | **Daily pipeline run** (`daily-fork.yml`) | 07:17 UTC daily, with backup slots at 13:43 and 19:29 UTC, manual | `verify` (tests) gates `fork` (discover, score, fork, commit the report). On failure it opens one issue; the next success closes it |
 | **Copilot CI** (`copilot-ci.yml`) | pushes and PRs that touch `copilot/` | builds and tests the TypeScript incident copilot on Node 22 and 24, and replays its demo. Independent of the daily run |
 | **Copilot publish** (`copilot-publish.yml`) | a `copilot-vX.Y.Z` tag; manual run is a dry run | publishes the incident copilot as an npm package and a container image on GitHub Packages. Never runs on normal pushes |
+| **CodeQL** (`codeql.yml`) | pushes and PRs to `main`, Thursdays 04:31 UTC | static analysis (SAST) of the Python scripts and the TypeScript copilot, results in the Security tab |
 | **Scorecard** (`scorecard.yml`) | pushes to `main`, Tuesdays 05:17 UTC | OpenSSF Scorecard of the repo's supply-chain practices (pinned actions, least-privilege tokens, branch protection), uploaded to the Security tab |
 | **Token health** (`token-health.yml`) | Mondays 06:43 UTC, manual | checks `FORK_PAT` is valid, has only `public_repo`, and is not within 14 days of expiry; opens an issue if not |
 | **Weekly roll-up** (`weekly-rollup.yml`) | Sundays 18:23 UTC, manual | writes `digest/weekly/YYYY-Www.md` (repos, topic and language counts, optional Claude themes) and commits it |

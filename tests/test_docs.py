@@ -37,7 +37,7 @@ class MermaidTests(unittest.TestCase):
         for wf in (ROOT / ".github" / "workflows").glob("*.yml"):
             name = {"ci": "ci", "daily-fork": "daily pipeline run", "weekly-rollup": "weekly roll-up",
                     "watchdog": "watchdog", "data-check": "data check", "token-health": "token health", "fork-inventory": "fork inventory", "copilot-ci": "copilot ci", "copilot-publish": "copilot publish",
-                    "scorecard": "scorecard"}[wf.stem]
+                    "scorecard": "scorecard", "codeql": "codeql"}[wf.stem]
             self.assertIn(name, text, f"{wf.name} is not described in ARCHITECTURE.md")
 
 
@@ -67,7 +67,7 @@ class BadgeTests(unittest.TestCase):
     def test_images_only_come_from_github_or_shields(self):
         text = (ROOT / "README.md").read_text()
         for url in re.findall(r"!\[[^\]]*\]\((https?://[^)\s]+)\)", text):
-            self.assertRegex(url, r"^https://(github\.com|img\.shields\.io)/", f"unexpected image host: {url}")
+            self.assertRegex(url, r"^https://(github\.com|img\.shields\.io|api\.securityscorecards\.dev)/", f"unexpected image host: {url}")
 
     def test_local_images_used_by_the_readme_exist(self):
         text = (ROOT / "README.md").read_text()

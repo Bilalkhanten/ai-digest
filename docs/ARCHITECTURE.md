@@ -58,6 +58,7 @@ change is a commit, so the history is the audit log and a same-day rerun is a no
 | Watchdog | daily 12:07 and 18:47 UTC | starts the daily workflow if today's digest is missing; opens an issue if there is none for 2+ days |
 | Copilot CI | pushes and PRs that touch `copilot/` | builds and tests the TypeScript incident copilot on Node 22 and 24, and replays its demo scenario. Separate from the main CI and the daily run, so it can never block the digest |
 | Copilot publish | a `copilot-vX.Y.Z` tag; manual run is a dry run | publishes the incident copilot as an npm package and a container image on GitHub Packages, using only the built-in token. Refuses a tag that does not match the package version, and refuses to publish while the package has no license. Publishes the exact tarball it packed, and attests the build provenance of the tarball and the image (verifiable with `gh attestation verify`) |
+| CodeQL | pushes and PRs to `main`, Thursdays 04:31 UTC | static analysis (SAST) of the Python scripts and the TypeScript copilot, results in the Security tab |
 | Scorecard | pushes to `main`, Tuesdays 05:17 UTC, and branch-protection changes | OpenSSF Scorecard of the repository's supply-chain practices, published and uploaded to the Security tab. Read-only, with no `run` steps |
 | Token health | Mondays 06:43 UTC | checks the token's validity, scopes and expiry |
 | Fork inventory | 1st of the month | read-only report of forks made by the tool |
