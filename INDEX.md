@@ -4,6 +4,7 @@ Every project the pipeline has processed, newest first (AI, DevOps, Kubernetes, 
 
 | Date | Repo | Stars | Topic | Forked | Notes |
 |---|---|---|---|---|---|
+| 2026-11-23 | [floci-io/floci](https://github.com/Bilalkhanten/floci) | 32,045 | docker | yes | [digest](digest/2026-11-23.md) |
 | 2026-11-22 | [woodpecker-ci/woodpecker](https://github.com/Bilalkhanten/woodpecker) | 8,264 | devops | yes | [digest](digest/2026-11-22.md) |
 | 2026-11-21 | [onyx-dot-app/onyx](https://github.com/Bilalkhanten/onyx) | 33,490 | llm | yes | [digest](digest/2026-11-21.md) |
 | 2026-11-20 | [ClickHouse/ClickStack](https://github.com/Bilalkhanten/ClickStack) | 10,058 | kubernetes | yes | [digest](digest/2026-11-20.md) |

@@ -47,5 +47,12 @@
     "stars": 8264,
     "topic": "devops",
     "fork_url": "https://github.com/Bilalkhanten/woodpecker"
+  },
+  {
+    "date": "2026-11-23",
+    "repo": "floci-io/floci",
+    "stars": 32045,
+    "topic": "docker",
+    "fork_url": "https://github.com/Bilalkhanten/floci"
   }
 ]
