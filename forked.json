@@ -54,5 +54,12 @@
     "stars": 32045,
     "topic": "docker",
     "fork_url": "https://github.com/Bilalkhanten/floci"
+  },
+  {
+    "date": "2026-11-24",
+    "repo": "NVIDIA-NeMo/nemo-helix",
+    "stars": 153,
+    "topic": "ai-agents",
+    "fork_url": "https://github.com/Bilalkhanten/nemo-helix"
   }
 ]
