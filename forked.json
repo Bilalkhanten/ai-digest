@@ -61,5 +61,12 @@
     "stars": 153,
     "topic": "ai-agents",
     "fork_url": "https://github.com/Bilalkhanten/nemo-helix"
+  },
+  {
+    "date": "2026-11-25",
+    "repo": "Arvo-AI/aurora",
+    "stars": 466,
+    "topic": "sre",
+    "fork_url": "https://github.com/Bilalkhanten/aurora"
   }
 ]
