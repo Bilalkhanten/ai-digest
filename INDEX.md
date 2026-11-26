@@ -4,6 +4,7 @@ Every project the pipeline has processed, newest first (AI, DevOps, Kubernetes, 
 
 | Date | Repo | Stars | Topic | Forked | Notes |
 |---|---|---|---|---|---|
+| 2026-11-26 | [myylogic/cevahir-ai](https://github.com/Bilalkhanten/cevahir-ai) | 318 | rag | yes | [digest](digest/2026-11-26.md) |
 | 2026-11-25 | [Arvo-AI/aurora](https://github.com/Bilalkhanten/aurora) | 466 | sre | yes | [digest](digest/2026-11-25.md) |
 | 2026-11-24 | [NVIDIA-NeMo/nemo-helix](https://github.com/Bilalkhanten/nemo-helix) | 153 | ai-agents | yes | [digest](digest/2026-11-24.md) |
 | 2026-11-23 | [floci-io/floci](https://github.com/Bilalkhanten/floci) | 32,045 | docker | yes | [digest](digest/2026-11-23.md) |

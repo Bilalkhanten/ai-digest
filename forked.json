@@ -68,5 +68,12 @@
     "stars": 466,
     "topic": "sre",
     "fork_url": "https://github.com/Bilalkhanten/aurora"
+  },
+  {
+    "date": "2026-11-26",
+    "repo": "myylogic/cevahir-ai",
+    "stars": 318,
+    "topic": "rag",
+    "fork_url": "https://github.com/Bilalkhanten/cevahir-ai"
   }
 ]
