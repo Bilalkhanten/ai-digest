@@ -4,6 +4,7 @@ Every project the pipeline has processed, newest first (AI, DevOps, Kubernetes, 
 
 | Date | Repo | Stars | Topic | Forked | Notes |
 |---|---|---|---|---|---|
+| 2026-11-28 | [coralogix/cx-cli](https://github.com/Bilalkhanten/cx-cli) | 243 | observability | yes | [digest](digest/2026-11-28.md) |
 | 2026-11-27 | [louislam/uptime-kuma](https://github.com/Bilalkhanten/uptime-kuma) | 94,931 | monitoring | yes | [digest](digest/2026-11-27.md) |
 | 2026-11-26 | [myylogic/cevahir-ai](https://github.com/Bilalkhanten/cevahir-ai) | 318 | rag | yes | [digest](digest/2026-11-26.md) |
 | 2026-11-25 | [Arvo-AI/aurora](https://github.com/Bilalkhanten/aurora) | 466 | sre | yes | [digest](digest/2026-11-25.md) |

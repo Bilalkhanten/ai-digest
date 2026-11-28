@@ -82,5 +82,12 @@
     "stars": 94931,
     "topic": "monitoring",
     "fork_url": "https://github.com/Bilalkhanten/uptime-kuma"
+  },
+  {
+    "date": "2026-11-28",
+    "repo": "coralogix/cx-cli",
+    "stars": 243,
+    "topic": "observability",
+    "fork_url": "https://github.com/Bilalkhanten/cx-cli"
   }
 ]
